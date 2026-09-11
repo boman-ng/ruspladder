@@ -35,8 +35,8 @@
 - [x] Normalization, NB/Gamma GLM, dispersion fitting/shrinkage, LRT and correction.
 - [x] Full prep/build/test orchestration and cache reuse.
 - [x] Upstream fixtures and airway real-data differential verification.
-- [ ] 1/4-thread determinism and 4 CPU / 8 GiB lifecycle benchmarks.
-- [ ] P0 investigation, all required checks, final compatibility and performance reports.
+- [x] 1/4-thread determinism and 4 CPU / 8 GiB lifecycle benchmarks.
+- [x] P0 investigation, all required checks, final compatibility and performance reports.
 
 ## Sources and licensing
 
@@ -63,7 +63,8 @@ The initial Slurm resource probe confirmed 4 CPUs / 8 GiB. With Slurmctld
 unavailable, scripts/run_constrained.sh now enforces the same limits in Docker;
 scripts/resource_probe.py checks the actual cgroup and CPU affinity. Measurements
 include process CPU, RSS, cgroup peak, I/O and complete command stage timings.
-Final lifecycle benchmark acceptance is still pending.
+Final lifecycle acceptance passed: 36 constrained runs and 18 complete output
+comparisons, including fresh and reused workflows. See PERFORMANCE.md.
 
 P0 candidate identified in reads.summarize_chr: dense (3, chromosome_length)
 uint32 coverage allocation before sparse conversion, ~3 GB per 250 Mb contig.
@@ -161,7 +162,7 @@ The new run also confirms exact event feature/PSI values after enabling exact
 JSON float round trips. See NUMERICS.md for the native kernel decisions and
 the retained failed numerical comparisons that led to them.
 
-The CLI implements direct-alignment build, annotation prep and the complete
+The CLI implements direct/sparse-alignment build, annotation/alignment prep and the complete
 nonvisual differential test path from counted HDF5 plus native graph/event caches. The test CLI comparisons
 use a reference-only fixture importer, not a production pickle dependency.
 Native caches publish completed files atomically; injected write failures
@@ -180,6 +181,25 @@ seven scenarios at 1/4 threads with fresh and reused caches (14 comparisons,
 recorded separately (sparse-build-index-fixed). Missing-BAM cache recount and
 regeneration pass (cache-only-fixed, cache-only-regenerate). CRAM prep CLI wiring
 and the source missing-NM behavior are documented in COMPATIBILITY.md.
-The complete integration regression passed (check-20260911T233626). Prep checks
-cover all four confidence levels at 1/4 threads: 8 cases / 192 arrays.
-Final lifecycle benchmark acceptance remains in progress.
+The complete integration regression passed (check-20260911T233626). After the
+performance merge, release integration checks also pass (check-performance-integration):
+96 sparse summaries, positive cassette insertion, sequential filter state, sparse
+core builds, all direct/sparse CLI scenarios and missing-BAM cache rebuilding.
+The CLI checks require identical raw floating-point array bytes at 1/4 threads.
+Prep checks cover all four confidence levels at 1/4 threads: 8 cases / 192 arrays.
+Final lifecycle acceptance passed (lifecycle-final/report.json): three interleaved
+fresh/reused repetitions each of real-airway build and direct/sparse 20-sample
+build/test. All 36 runs stay inside verified 4 CPU / 8 GiB cgroups; all 18 output
+comparisons pass. New airway builds improve from 36.12 to 1.07 seconds and from
+830.59 to 27.43 MiB cgroup peak (medians). Full CPU, RSS, I/O, stage timings,
+statistical comparisons and small-dataset/JIT limitations are in PERFORMANCE.md.
+
+The third P0 branch, perf/p0-bam-decompression at 757a9b5, reuses HTSlib's
+libdeflate feature and parallelizes independent cassette/retention gene stages.
+It was adopted at 396e0aa after three constrained real-airway runs per variant,
+21,948 exact arrays / 48 texts, 106 read cases, 45 graph cases and the sequential
+filter-state regression. A positive eight-gene fixture additionally verifies
+64 cassette insertions at all confidences and 1/4 threads. Median wall time
+improves 38.2%, CPU seconds 29.6%, and mean cores 12.3% versus the prior native
+implementation, with a 2.9 MiB peak-memory cost. See DECOMPRESSION.md for the
+counterfactual comparisons, licenses, research, tradeoff and retained reports.
