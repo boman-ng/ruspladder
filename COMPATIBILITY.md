@@ -1,0 +1,42 @@
+# Observed SplAdder v3.1.1 behavior
+
+This migration targets the pinned source and reference environment specified in
+MIGRATION.md. These are observed contracts and failures, not proposed fixes.
+
+- Text starts use the source's mixed coordinate conventions in each format.
+  Event IDs, annotation bits and isoform order retain upstream behavior.
+- Structured output prints Python byte-string representations for sample tags.
+  It stops after an unterminated prefix for the first multi-exon-skip event.
+  BED output stops without records for multi-exon-skip and mutex events.
+  These limitations are exercised in the 990 exact text comparisons.
+- Event HDF5 positions for mutex events have shape (events, 2, 4), unlike other
+  types. Empty event sets use the source's one-element event_counts sentinel
+  and metadata, without invented empty PSI/confirmation datasets.
+- Single-quantification collection copies metadata and numeric dtypes from the
+  first file, extends the sample axes, truncates labels to S255, and has no
+  strains soft link. Ordinary graph/event/expression files do have that link.
+- The differential-test quantifier restores requested coverage/sample order
+  after sorting within each group, but leaves PSI in sorted group order.
+  The 324-case comparison includes reversed groups, filter_idx, fractional
+  features, empty groups and the source's high-memory mode.
+- Normalization `uq` raises NameError because count.py does not import
+  scoreatpercentile. Eighty reference failures are recorded separately from
+  160 successful normalization comparisons. Native code reports this error.
+- Correction `TSBH` passes `tsbh` to statsmodels 0.14.4, which rejects that
+  method name. Correction on no non-NaN hypotheses also fails upstream
+  by division by zero. Native code reports errors; 29 unrecognized-method and
+  91 empty-input reference cases are separate from 174 successful comparisons.
+  The six working methods retain missingness, six-decimal results, and tested
+  rejection decisions at alpha 0.01, 0.05 and 0.1.
+
+The CLI test path explicitly disables exon-count augmentation of isoform counts
+and event-ID construction. Legacy direct graph quantifiers and unused experimental
+helper paths are not substituted for that production path. Remaining advanced
+graph failure paths still need explicit reproduction before the final report.
+
+Primary implementation references: SplAdder v3.1.1 count.py,
+alt_splice/{analyze,quantify,write}.py and spladder_test.py; statsmodels 0.14.4
+stats/multitest.py. The HDF5 chunk decision follows the
+[HDF Group partial-I/O guidance](https://support.hdfgroup.org/documentation/hdf5/latest/hdf5_chunking.html).
+Gzip output uses [flate2's streaming encoder](https://docs.rs/flate2/1.1.10/flate2/write/struct.GzEncoder.html)
+over the already linked zlib; gzip headers are not a byte-identity interface.

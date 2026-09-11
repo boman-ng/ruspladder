@@ -31,7 +31,7 @@
 - [ ] BAM/CRAM filtering, coverage, sparse prep, reference lookup.
 - [ ] Graph augmentation, re-inference, pruning, merge strategies.
 - [x] Six event detectors, collection, sorting, curation, feature verification.
-- [ ] Segment/junction counts, gene expression, PSI, all outputs.
+- [x] Segment/junction counts, gene expression, PSI, public build result formats (CLI wiring pending).
 - [ ] Normalization, NB/Gamma GLM, dispersion fitting/shrinkage, LRT and correction.
 - [ ] Full prep/build/test orchestration and cache reuse.
 - [ ] Upstream fixtures and airway real-data differential verification.
@@ -76,6 +76,15 @@ pending performance evidence. Slurmctld is currently DOWN; the benchmark failed
 before starting with an allocation/connect error. Ordinary local timings do not
 substitute for the required enforced 4 CPU / 8 GiB run.
 
+A second candidate, perf/p0-hdf5-chunks at 7e2f370, reproduced 64 MiB automatic
+chunks on an unlimited sample axis. Its release 8-by-2 matrix microbenchmark
+used four-CPU affinity and an 8 GiB address-space cap (not a cgroup memory limit).
+Three default runs took 7.69–7.71 s; bounded chunks took 0.0088–0.0091 s with exact
+logical output. The explicit chunk layout is adopted for count collection and
+event batches; public file comparisons pass. This measures a local pathology,
+not overall pipeline speed. See ../p0-hdf5-chunks/RESEARCH.md and
+../runs/p0-chunks/report.json for the method, alternatives and evidence.
+
 ## Verified implementation boundaries
 
 Reference NumPy 2.2.6 / SciPy 1.13.1 / statsmodels 0.14.4 is locked;
@@ -100,6 +109,13 @@ Current differential checks against that reference:
 | Sample/chunk merge, support filtering, cache roundtrip | 42 | merge-parity/report.json |
 | Graph segment/junction counting, 1/4 threads | 24 | count-parity/report.json |
 | Six event feature vectors, flags, PSI | 1330 | verify-parity/report.json |
+| Public graph counts and gene expression | 60 files / 560 arrays | check-20260911T205705/count-io/report.json |
+| Geometric-mean and total-count normalization | 160 | check-20260911T205705/count-io/report.json |
+| Single-quantification collection, first-file types and unlimited axes | 12 / 108 arrays | check-20260911T205705/count-collect/report.json |
+| Six event analysis HDF5, 1/4 threads and 128-event batches | 130 / 1580 arrays | check-20260911T205705/analysis/report.json |
+| TXT, structured, BED, GFF3/GTF, TCGA, ICGC and gzip text | 990 files | check-20260911T205705/outputs/report.json |
+| Isoform counts for testing, sample and PSI ordering | 324 | quantify-parity/report.json |
+| Six working multiple-testing corrections and decisions | 174 | correction-parity/report.json |
 
 The augmentation comparison injects identical coverage at the upstream I/O
 boundary; it verifies graph algorithms, not the full build workflow. Raw detector
@@ -117,7 +133,17 @@ The reference's metadata ownership, terminal behavior and validation side
 effects are preserved. Advanced paths that fail upstream need separate
 failure-contract documentation; no invented successful results are substituted.
 
+Public array comparisons include shapes, dtypes, links, compression and values;
+collection also checks unlimited axes. Chunk geometry is intentionally changed
+for bounded access. Text comparisons are exact bytes after gzip decompression.
+Upstream's unimplemented structured multi-exon output and BED multi-exon/mutex
+output are reproduced and documented in COMPATIBILITY.md, not invented.
+The combined regression passed through all writers. Its initial quantification
+fixture enumeration missed the synthetic multi-exon fixture; that guard failed,
+was corrected, and the complete 324-case quantification check then passed.
+
 The CLI currently implements annotation prep only. Sparse-input integration,
-gene expression, statistical testing, public result writers, complete CLI
-orchestration/cache reuse and lifecycle benchmarking remain open.
-No end-to-end replacement, speedup, or peak-memory improvement is claimed yet.
+NB/Gamma GLM and dispersion/LRT testing, complete CLI orchestration/cache reuse
+and lifecycle benchmarking remain open. Multiple-testing corrections alone do
+not constitute a completed differential test workflow.
+No end-to-end replacement or full-lifecycle runtime/memory improvement is claimed yet.

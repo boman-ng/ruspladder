@@ -11,6 +11,9 @@ anyhow = "1"
 libc = "0.2"
 clap = { version = "4", features = ["derive"] }
 hdf5 = { package = "hdf5-metno", version = "0.14", features = ["static", "zlib"] }
+hdf5-sys = { package = "hdf5-metno-sys", version = "0.12" }
+ndarray = "0.17"
+flate2 = { version = "1", default-features = false, features = ["zlib"] }
 rayon = "1.11"
 rust-htslib = { version = "1.0.1", default-features = false, features = ["bzip2", "lzma"] }
 serde = { version = "1", features = ["derive"] }

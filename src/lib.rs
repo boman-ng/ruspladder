@@ -1,17 +1,24 @@
 //! SplAdder v3.1.1 algorithms, migrated to Rust.
+pub mod analyze;
 pub mod annotation;
 pub mod augment;
 pub mod build_graph;
 pub mod cache;
+pub mod correction;
 pub mod count;
+pub mod count_io;
 pub mod detect;
 pub mod editgraph;
 pub mod events;
+pub mod expression;
 pub mod graph;
+pub mod hdf5io;
 pub mod intron_edges;
 pub mod introns;
 pub mod merge;
 pub mod numeric;
+pub mod output;
+pub mod quantify;
 pub mod reads;
 pub mod reference;
 mod sort;
