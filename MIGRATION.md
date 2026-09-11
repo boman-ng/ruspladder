@@ -120,6 +120,8 @@ Current differential checks against that reference:
 | Bounded scalar optimizer, statuses and evaluation counts | 168 | check-20260911T213736/optimize/report.json |
 | NB likelihood, Cox–Reid, shrinkage, trigamma and chi-square kernels | 45 | check-20260911T213736/likelihood/report.json |
 | Raw/trend/shrunken dispersion, LRT and final isoform selection | 12 × 60 rows, 1/4 threads | check-20260911T213736/statistics/report.json |
+| Test input capping, filtering, rounding, design and means | 144 (48 skip all low-coverage events) | test-input-parity/report.json |
+| Test TSV ordering, extended/gene-unique results, setup HDF5 | 144 TSV / 48 setup files | test-output-parity/report.json |
 
 The augmentation comparison injects identical coverage at the upstream I/O
 boundary; it verifies graph algorithms, not the full build workflow. Raw detector
@@ -150,7 +152,7 @@ JSON float round trips. See NUMERICS.md for the native kernel decisions and
 the retained failed numerical comparisons that led to them.
 
 The CLI currently implements annotation prep only. Sparse-input integration,
-test input preparation/final text output, complete CLI orchestration/cache reuse
+test input file loading, complete CLI orchestration/cache reuse
 and lifecycle benchmarking remain open. Passing the statistical numerical
 sequence does not constitute a completed differential test workflow.
 No end-to-end replacement or full-lifecycle runtime/memory improvement is claimed yet.

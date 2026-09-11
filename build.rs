@@ -33,6 +33,7 @@ fn main() {
             ),
         ] {
             let symbol = format!("ruspladder_argsort_i64_{name}");
+            let float_symbol = format!("ruspladder_argsort_f64_{name}");
             let mut build = cc::Build::new();
             build
                 .cpp(true)
@@ -40,7 +41,8 @@ fn main() {
                 .opt_level(2)
                 .include("vendor/x86-simd-sort/src")
                 .file("native/argsort.cpp")
-                .define("RUSPLADDER_ARGSORT", symbol.as_str());
+                .define("RUSPLADDER_ARGSORT", symbol.as_str())
+                .define("RUSPLADDER_ARGSORT_F64", float_symbol.as_str());
             for flag in flags {
                 build.flag(flag);
             }

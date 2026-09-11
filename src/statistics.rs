@@ -269,7 +269,7 @@ pub fn test(
         .collect())
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TestingResult {
     pub pvalues: Vec<f64>,
     pub coverage: Vec<Vec<f64>>,

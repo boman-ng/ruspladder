@@ -45,6 +45,16 @@ MIGRATION.md. These are observed contracts and failures, not proposed fixes.
   changed individual inputs by one ULP, enough to amplify differences in
   the ill-conditioned dispersion fixture. HDF5 production values do not
   pass through JSON.
+- Test input processing retains the source's two different outlier caps
+  (expression: 1.5 IQR after normalization; events: 3 IQR before normalization),
+  low-coverage union across isoforms, all-missing group PSI replacement,
+  ties-to-even count rounding, design columns and dPSI mask. The 144-case
+  comparison captures the actual upstream test function at the GLM boundary.
+- Test output retains NumPy's unstable floating-point argsort for equal
+  p-values, first-row-per-gene selection, coordinate strings and all TSV
+  columns. Internal test_setup pickle dictionaries become HDF5 with the same
+  values. The 48 writer comparisons inject fixed statistical results into
+  the actual upstream test function; they do not count as full CLI tests.
 
 The CLI test path explicitly disables exon-count augmentation of isoform counts
 and event-ID construction. Legacy direct graph quantifiers and unused experimental

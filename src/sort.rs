@@ -5,6 +5,46 @@
 unsafe extern "C" {
     fn ruspladder_argsort_i64_avx2(values: *mut i64, indices: *mut usize, len: usize);
     fn ruspladder_argsort_i64_avx512(values: *mut i64, indices: *mut usize, len: usize);
+    fn ruspladder_argsort_f64_avx2(values: *mut f64, indices: *mut usize, len: usize);
+    fn ruspladder_argsort_f64_avx512(values: *mut f64, indices: *mut usize, len: usize);
+}
+
+/// Final test p-values have already had NaNs replaced by 1.
+pub fn argsort_f64(values: &[f64]) -> Vec<usize> {
+    assert!(values.iter().all(|x| !x.is_nan()));
+    let mut indices: Vec<_> = (0..values.len()).collect();
+    if values.len() < 2 {
+        return indices;
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        let avx512 = std::is_x86_feature_detected!("avx512f")
+            && std::is_x86_feature_detected!("avx512cd")
+            && std::is_x86_feature_detected!("avx512bw")
+            && std::is_x86_feature_detected!("avx512dq")
+            && std::is_x86_feature_detected!("avx512vl");
+        if avx512 || std::is_x86_feature_detected!("avx2") {
+            let mut data = values.to_vec();
+            unsafe {
+                if avx512 {
+                    ruspladder_argsort_f64_avx512(
+                        data.as_mut_ptr(),
+                        indices.as_mut_ptr(),
+                        values.len(),
+                    );
+                } else {
+                    ruspladder_argsort_f64_avx2(
+                        data.as_mut_ptr(),
+                        indices.as_mut_ptr(),
+                        values.len(),
+                    );
+                }
+            }
+            return indices;
+        }
+    }
+    scalar_argsort(values, &mut indices);
+    indices
 }
 
 pub fn argsort_i64(values: &[i64]) -> Vec<usize> {
@@ -49,7 +89,7 @@ pub fn argsort_i64(values: &[i64]) -> Vec<usize> {
 
 // Port of NumPy 2.2.6 npysort/quicksort.cpp aquicksort_, by Charles R. Harris
 // and the NumPy developers (BSD-3-Clause; see licenses/NumPy-BSD.txt).
-fn scalar_argsort(values: &[i64], indices: &mut [usize]) {
+fn scalar_argsort<T: PartialOrd + Copy>(values: &[T], indices: &mut [usize]) {
     if indices.len() < 2 {
         return;
     }
@@ -112,7 +152,7 @@ fn scalar_argsort(values: &[i64], indices: &mut [usize]) {
 }
 
 // NumPy npysort/npysort_heapsort.h aheapsort_ uses a one-based heap.
-fn scalar_heapsort(values: &[i64], indices: &mut [usize]) {
+fn scalar_heapsort<T: PartialOrd + Copy>(values: &[T], indices: &mut [usize]) {
     let mut n = indices.len();
     for left in (1..=n / 2).rev() {
         sift(values, indices, left, n);
@@ -124,7 +164,7 @@ fn scalar_heapsort(values: &[i64], indices: &mut [usize]) {
     }
 }
 
-fn sift(values: &[i64], indices: &mut [usize], mut i: usize, n: usize) {
+fn sift<T: PartialOrd + Copy>(values: &[T], indices: &mut [usize], mut i: usize, n: usize) {
     let index = indices[i - 1];
     while i <= n / 2 {
         let mut j = i * 2;
