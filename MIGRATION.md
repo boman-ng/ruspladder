@@ -116,6 +116,10 @@ Current differential checks against that reference:
 | TXT, structured, BED, GFF3/GTF, TCGA, ICGC and gzip text | 990 files | check-20260911T205705/outputs/report.json |
 | Isoform counts for testing, sample and PSI ordering | 324 | quantify-parity/report.json |
 | Six working multiple-testing corrections and decisions | 174 | correction-parity/report.json |
+| NB/log and Gamma/identity GLM, including exact iteration counts | 263 valid / 57 reference errors | check-20260911T213736/glm/report.json |
+| Bounded scalar optimizer, statuses and evaluation counts | 168 | check-20260911T213736/optimize/report.json |
+| NB likelihood, Cox–Reid, shrinkage, trigamma and chi-square kernels | 45 | check-20260911T213736/likelihood/report.json |
+| Raw/trend/shrunken dispersion, LRT and final isoform selection | 12 × 60 rows, 1/4 threads | check-20260911T213736/statistics/report.json |
 
 The augmentation comparison injects identical coverage at the upstream I/O
 boundary; it verifies graph algorithms, not the full build workflow. Raw detector
@@ -138,12 +142,15 @@ collection also checks unlimited axes. Chunk geometry is intentionally changed
 for bounded access. Text comparisons are exact bytes after gzip decompression.
 Upstream's unimplemented structured multi-exon output and BED multi-exon/mutex
 output are reproduced and documented in COMPATIBILITY.md, not invented.
-The combined regression passed through all writers. Its initial quantification
-fixture enumeration missed the synthetic multi-exon fixture; that guard failed,
-was corrected, and the complete 324-case quantification check then passed.
+The complete component regression is recorded in check-20260911T213736 and
+check-statistics-current.log. Its earlier quantification fixture enumeration
+missed a synthetic multi-exon fixture; that guard was corrected before this run.
+The new run also confirms exact event feature/PSI values after enabling exact
+JSON float round trips. See NUMERICS.md for the native kernel decisions and
+the retained failed numerical comparisons that led to them.
 
 The CLI currently implements annotation prep only. Sparse-input integration,
-NB/Gamma GLM and dispersion/LRT testing, complete CLI orchestration/cache reuse
-and lifecycle benchmarking remain open. Multiple-testing corrections alone do
-not constitute a completed differential test workflow.
+test input preparation/final text output, complete CLI orchestration/cache reuse
+and lifecycle benchmarking remain open. Passing the statistical numerical
+sequence does not constitute a completed differential test workflow.
 No end-to-end replacement or full-lifecycle runtime/memory improvement is claimed yet.

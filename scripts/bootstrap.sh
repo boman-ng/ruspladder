@@ -19,3 +19,4 @@ if [[ ! -x "$task_root/envs/build/bin/python" ]]; then
     uv venv "$task_root/envs/build" --python 3.13
 fi
 uv pip install --python "$task_root/envs/build/bin/python" cmake==4.4.3 libclang==18.1.1
+"$task_root/envs/build/bin/python" "$repo_root/scripts/bootstrap-native.py"

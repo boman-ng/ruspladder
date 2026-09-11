@@ -1,0 +1,16 @@
+{
+  "source": "SciPy 1.13.1 wheel, scipy/special/special",
+  "license": "../../licenses/SciPy-BSD.txt",
+  "sha256": {
+    "config.h": "68c7ffa4d2961358808093529da08aa9d3cdb8a2b766af6eb9c93c87a7fc1a0b",
+    "error.h": "fec77ed9b811c82b4f31be302c3e7b8bc1a67ee60e20d78ffe8e34891470be01",
+    "cephes/gamma.h": "02c18940be5ced5f606a15dedc1e7f74521f3ac10ad8a5aa2b85fc1026371075",
+    "cephes/zeta.h": "22f7544f43dd1eb78352c3e98ea898e1486fcf492aeadc9e81b6360b0536bb8c",
+    "cephes/polevl.h": "0a50824b5dcef9e3ea5d2c6f9ac3d935947f468c99416ef1310a3478f4909835",
+    "cephes/const.h": "213af4b0a5003f809c62270f9a693ae4cf57155ba94607c5dc58aa39ec256c02",
+    "cephes/unity.c": "db284adbb424603c33c184f669aebefbb19d9bf34ef3c89bd9a94bafb43cfae0"
+  },
+  "additional_sources": {
+    "cephes/unity.c": "https://raw.githubusercontent.com/scipy/scipy/v1.13.1/scipy/special/cephes/unity.c"
+  }
+}

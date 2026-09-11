@@ -28,6 +28,23 @@ MIGRATION.md. These are observed contracts and failures, not proposed fixes.
   91 empty-input reference cases are separate from 174 successful comparisons.
   The six working methods retain missingness, six-decimal results, and tested
   rejection decisions at alpha 0.01, 0.05 and 0.1.
+- NB/log and Gamma/identity IRLS reuse statsmodels' iteration, scale and
+  stopping rules, NumPy's LAPACK least-squares and pseudoinverse kernels,
+  and SciPy's bounded scalar optimizer. The Cox–Reid term retains the LU
+  determinant followed by log; replacing it with a stable log-determinant
+  changes observed estimates for zero-heavy, ill-conditioned designs.
+- SciPy 1.13.1's `xlog1py` calls its renamed Cephes `log1p`, despite the
+  Cython source importing `libc.math.log1p`. The wheel's disassembly confirms
+  the call to `cephes_log1p`. Reusing unity.c's approximation removes small
+  likelihood differences that otherwise perturb dispersion optimization.
+  Source and SHA-256 are retained in vendor/scipy-special/SOURCES.json.
+- The final test chooses the larger available isoform p-value, retaining
+  the first on ties; it replaces missing p-values with 1. LRT uses 1-CDF
+  with one degree of freedom, preserving cancellation at very small values.
+- JSON comparison probes enable exact float round trips. The default parser
+  changed individual inputs by one ULP, enough to amplify differences in
+  the ill-conditioned dispersion fixture. HDF5 production values do not
+  pass through JSON.
 
 The CLI test path explicitly disables exon-count augmentation of isoform counts
 and event-ID construction. Legacy direct graph quantifiers and unused experimental
