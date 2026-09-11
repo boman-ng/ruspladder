@@ -128,6 +128,17 @@ pub fn write_genes(path: &Path, genes: &[Gene]) -> Result<()> {
             })
             .collect();
         write_pairs(&splice, "edges", &edges)?;
+        if let Some(counts) = &gene.edge_count {
+            let count_group = group.create_group("edge_count")?;
+            let mut offsets = vec![0u64];
+            let mut values = Vec::new();
+            for row in counts {
+                values.extend(row.iter().map(|&(j, count)| [j as u64, count]));
+                offsets.push(values.len() as u64);
+            }
+            write_vector(&count_group, "row_offsets", &offsets)?;
+            write_pairs(&count_group, "values", &values)?;
+        }
         let segment = group.create_group("segment")?;
         write_pairs(&segment, "segments", &gene.segmentgraph.segments)?;
         write_pairs(
@@ -237,10 +248,25 @@ pub fn read_genes(path: &Path) -> Result<Vec<Gene>> {
             strand == "+" || strand == "-",
             "gene {i}: invalid cached strand"
         );
+        let edge_count = if group.link_exists("edge_count") {
+            let counts = group.group("edge_count")?;
+            Some(
+                unpack(
+                    &read_pairs::<u64>(&counts, "values")?,
+                    &counts.dataset("row_offsets")?.read_raw::<u64>()?,
+                )?
+                .into_iter()
+                .map(|row| row.into_iter().map(|[j, n]| (j as usize, n)).collect())
+                .collect(),
+            )
+        } else {
+            None
+        };
         genes.push(Gene {
             name: read_string(&group, "name")?,
             chr: read_string(&group, "chr")?,
             source: optional("source")?,
+            edge_count,
             gene_type: optional("gene_type")?,
             symbol: optional("symbol")?,
             start: bounds[0],

@@ -8,6 +8,7 @@ license = "GPL-3.0-or-later"
 
 [dependencies]
 anyhow = "1"
+libc = "0.2"
 clap = { version = "4", features = ["derive"] }
 hdf5 = { package = "hdf5-metno", version = "0.14", features = ["static", "zlib"] }
 rayon = "1.11"

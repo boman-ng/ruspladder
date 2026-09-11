@@ -920,6 +920,7 @@ dependencies = [
  "cc",
  "clap",
  "hdf5-metno",
+ "libc",
  "rayon",
  "rust-htslib",
  "serde",

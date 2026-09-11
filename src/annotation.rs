@@ -26,6 +26,9 @@ pub struct Gene {
     pub segmentgraph: SegmentGraph,
     pub is_alt: Option<bool>,
     pub is_alt_spliced: Option<bool>,
+    /// Per-edge support across merged samples, sorted sparse rows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edge_count: Option<Vec<Vec<(usize, u64)>>>,
 }
 
 impl Gene {
@@ -179,6 +182,7 @@ impl Record {
             segmentgraph: SegmentGraph::default(),
             is_alt: None,
             is_alt_spliced: None,
+            edge_count: None,
         })
     }
 }

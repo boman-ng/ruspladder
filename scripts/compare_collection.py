@@ -15,11 +15,15 @@ from compare_annotations import serialize
 KINDS = ["exon_skip", "intron_retention", "alt_3prime", "alt_5prime", "mult_exon_skip", "mutex_exons"]
 
 
-def event_json(event):
-    value = {"event_type": event.event_type, "chr": event.chr, "strand": event.strand,
+def event_value(event):
+    return {"event_type": event.event_type, "chr": event.chr, "strand": event.strand,
              "exons1": event.exons1.tolist(), "exons2": event.exons2.tolist(),
              "gene_name": event.gene_name.tolist(), "gene_idx": int(event.gene_idx),
              "id": int(event.id), "annotated": int(event.annotated)}
+
+
+def event_json(event):
+    value = event_value(event)
     return {"event": value, "coords": event.get_coords().tolist(),
             "inner_coords": event.get_inner_coords().tolist(), "introns": event.get_introns().tolist(),
             "span": int(event.get_len()), "coordinate_strings": list(event.get_exon_coordinate_strings())}

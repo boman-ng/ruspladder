@@ -158,6 +158,14 @@ pub struct AlignmentReader {
 }
 
 impl AlignmentReader {
+    pub fn contig_names(&self) -> Vec<String> {
+        self.reader
+            .header()
+            .target_names()
+            .iter()
+            .map(|name| String::from_utf8_lossy(name).into_owned())
+            .collect()
+    }
     pub fn open(path: &Path, reference: Option<&Path>) -> Result<Self> {
         let mut reader = bam::IndexedReader::from_path(path)
             .with_context(|| format!("open indexed alignment {}", path.display()))?;
@@ -176,6 +184,27 @@ impl AlignmentReader {
         stop: i64,
         options: &ReadOptions,
     ) -> Result<ReadEvidence> {
+        self.evidence(chromosome, start, stop, options, true)
+    }
+
+    pub fn junctions(
+        &mut self,
+        chromosome: &str,
+        start: i64,
+        stop: i64,
+        options: &ReadOptions,
+    ) -> Result<ReadEvidence> {
+        self.evidence(chromosome, start, stop, options, false)
+    }
+
+    fn evidence(
+        &mut self,
+        chromosome: &str,
+        start: i64,
+        stop: i64,
+        options: &ReadOptions,
+        coverage: bool,
+    ) -> Result<ReadEvidence> {
         ensure!(
             start >= 0 && stop >= start,
             "invalid region {chromosome}:{start}-{stop}"
@@ -185,7 +214,11 @@ impl AlignmentReader {
             "mismatch tag must have two characters"
         );
         let mut result = ReadEvidence {
-            coverage: vec![0; (stop - start) as usize],
+            coverage: if coverage {
+                vec![0; (stop - start) as usize]
+            } else {
+                Vec::new()
+            },
             ..Default::default()
         };
         // get_reads explicitly excludes MT (summarize_chr does not).
@@ -220,7 +253,7 @@ impl AlignmentReader {
                         let end = position + *n as i64;
                         let a = position.max(start);
                         let b = end.min(stop);
-                        if a < b {
+                        if coverage && a < b {
                             for value in
                                 &mut result.coverage[(a - start) as usize..(b - start) as usize]
                             {

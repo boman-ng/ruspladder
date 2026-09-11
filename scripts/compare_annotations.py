@@ -31,6 +31,8 @@ def serialize(gene):
     result["segmentgraph"] = {"segments": sg.segments.T.tolist(),
                               "matches": [np.where(row)[0].tolist() for row in sg.seg_match],
                               "edges": np.array(np.where(sg.seg_edges)).T.tolist()}
+    if hasattr(gene, "edge_count") and gene.edge_count is not None:
+        result["edge_count"] = [[[int(j), int(row[j])] for j in np.where(row)[0]] for row in gene.edge_count]
     return result
 
 

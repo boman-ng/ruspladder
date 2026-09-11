@@ -30,7 +30,7 @@
 - [x] Annotation parsing/filtering, splice/segment graph primitives and caches.
 - [ ] BAM/CRAM filtering, coverage, sparse prep, reference lookup.
 - [ ] Graph augmentation, re-inference, pruning, merge strategies.
-- [ ] Six event detectors, collection, sorting, curation, verification.
+- [x] Six event detectors, collection, sorting, curation, feature verification.
 - [ ] Segment/junction counts, gene expression, PSI, all outputs.
 - [ ] Normalization, NB/Gamma GLM, dispersion fitting/shrinkage, LRT and correction.
 - [ ] Full prep/build/test orchestration and cache reuse.
@@ -70,7 +70,11 @@ The separate perf/p0-chromosome-coverage branch contains its reproduction.
 One worker reached 1,998,336 KiB RSS with only two short reads per contig;
 four workers on four 300 Mb contigs caused two OOM kills under the enforced
 8 GiB limit, followed by a hung upstream pool until the job timeout.
-Native optimization and its parity/performance comparison are still pending.
+The bounded-window native prototype is committed separately at 9955eb2;
+96 sparse summaries / 1,008 HDF5 arrays pass exact parity. It remains unmerged
+pending performance evidence. Slurmctld is currently DOWN; the benchmark failed
+before starting with an allocation/connect error. Ordinary local timings do not
+substitute for the required enforced 4 CPU / 8 GiB run.
 
 ## Verified implementation boundaries
 
@@ -81,7 +85,7 @@ NumPy 2 pickle fixtures. See runs/upstream-locked.log for the accepted baseline.
 
 Current differential checks against that reference:
 
-| Boundary | Exact comparisons | Evidence under ../runs |
+| Boundary | Comparisons | Evidence under ../runs |
 | --- | ---: | --- |
 | Splice/segment graph primitives | 614 | compare_graphs.py |
 | Annotation/filter/cache roundtrip (including airway GTF) | 14 | annotation-parity-real.log |
@@ -90,13 +94,30 @@ Current differential checks against that reference:
 | Collection, curation, coordinates and IDs, 1/4 threads | 20 | collection-parity/report.json |
 | Gene labels, short exons, duplicate merge | 832 | edit-parity/report.json |
 | Cassette insertion and intron retention from matched coverage | 1278 | augmentation-parity/report.json |
+| Intron edge insertion from matched coverage | 840 | intron-parity/report.json |
+| Intron ambiguity / FASTA consensus filtering | 100 | intron-filter-parity/report.json |
+| Complete direct-BAM graph generation, including airway | 45 | build-graph-parity/report.json |
+| Sample/chunk merge, support filtering, cache roundtrip | 42 | merge-parity/report.json |
+| Graph segment/junction counting, 1/4 threads | 24 | count-parity/report.json |
+| Six event feature vectors, flags, PSI | 1330 | verify-parity/report.json |
 
 The augmentation comparison injects identical coverage at the upstream I/O
 boundary; it verifies graph algorithms, not the full build workflow. Raw detector
 comparisons separately record 24 upstream empty-graph exceptions; those do not
 count as passing comparisons. Cargo clippy --all-targets -- -D warnings passes.
 
-The CLI currently implements annotation prep only. Graph edge insertion,
-sample merging, event verification/quantification, statistical testing, public
-result writers, complete orchestration and lifecycle benchmarking remain open.
+Graph generation includes confidence 0–3, individual augmentation switches,
+short-exon removal, strand and consensus settings, and multiple direct BAMs.
+The airway BAMs contain no NM tags; both implementations explicitly use the
+upstream --ignore-mismatches option (recorded in the graph-generation report).
+Event verification flags are exact. Feature vectors and PSI use the agreed
+quantification tolerance; observed maximum absolute difference is 1.78e-15.
+Sample merge streams one sample at a time and retains sparse edge support.
+The reference's metadata ownership, terminal behavior and validation side
+effects are preserved. Advanced paths that fail upstream need separate
+failure-contract documentation; no invented successful results are substituted.
+
+The CLI currently implements annotation prep only. Sparse-input integration,
+gene expression, statistical testing, public result writers, complete CLI
+orchestration/cache reuse and lifecycle benchmarking remain open.
 No end-to-end replacement, speedup, or peak-memory improvement is claimed yet.
