@@ -27,6 +27,7 @@ pub mod quantify;
 pub mod reads;
 pub mod reference;
 mod sort;
+pub mod sparse;
 pub mod statistics;
 pub mod test_cli;
 pub mod test_output;

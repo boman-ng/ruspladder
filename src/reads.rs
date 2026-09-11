@@ -157,7 +157,116 @@ pub struct AlignmentReader {
     reader: bam::IndexedReader,
 }
 
+/// One bounded coverage window for the public sparse BAM representation.
+pub struct CoverageWindow {
+    pub columns: Vec<i32>,
+    pub values: Vec<u32>,
+    pub introns: [BTreeMap<[i64; 2], u32>; 2],
+}
+
 impl AlignmentReader {
+    pub fn contigs(&self) -> Vec<(String, u64)> {
+        self.reader
+            .header()
+            .target_names()
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                (
+                    String::from_utf8_lossy(name).into_owned(),
+                    self.reader.header().target_len(i as u32).unwrap(),
+                )
+            })
+            .collect()
+    }
+
+    /// Start/end difference accumulation, as used by mosdepth, restricted to a
+    /// bounded indexed window. SplAdder includes deletions and overlapping mates.
+    /// target_row=None collapses strands; Some(0/1/2) selects an XS row.
+    pub fn coverage_window(
+        &mut self,
+        chromosome: &str,
+        start: i64,
+        stop: i64,
+        options: &ReadOptions,
+        target_row: Option<u8>,
+        count_introns: bool,
+    ) -> Result<CoverageWindow> {
+        ensure!(
+            start >= 0 && stop >= start && stop <= i32::MAX as i64,
+            "unsupported sparse window bounds"
+        );
+        let mut result = CoverageWindow {
+            columns: Vec::new(),
+            values: Vec::new(),
+            introns: Default::default(),
+        };
+        let Some(tid) = self.reader.header().tid(chromosome.as_bytes()) else {
+            return Ok(result);
+        };
+        self.reader.fetch((tid, start, stop))?;
+        let mut difference = Vec::<i64>::new();
+        let mut record = bam::Record::new();
+        while let Some(status) = self.reader.read(&mut record) {
+            status?;
+            if filter_read(&record, options)? {
+                continue;
+            }
+            let strand = strand_tag(&record);
+            let row = if strand == Some('-') {
+                2
+            } else if strand.is_some() {
+                1
+            } else {
+                0
+            };
+            let owner = count_introns && record.pos() >= start && record.pos() < stop;
+            let mut position = record.pos();
+            for op in record.cigar().iter() {
+                match op {
+                    Cigar::RefSkip(n) => {
+                        if owner {
+                            let value = result.introns[usize::from(row == 2)]
+                                .entry([position, position + *n as i64])
+                                .or_default();
+                            *value = value.wrapping_add(1);
+                        }
+                        position += *n as i64;
+                    }
+                    Cigar::Match(n) | Cigar::Del(n) | Cigar::Equal(n) | Cigar::Diff(n) => {
+                        let end = position + *n as i64;
+                        if target_row.is_none_or(|r| r == row) {
+                            let a = position.max(start);
+                            let b = end.min(stop);
+                            if a < b {
+                                if difference.is_empty() {
+                                    difference.resize((stop - start) as usize + 1, 0);
+                                }
+                                difference[(a - start) as usize] += 1;
+                                difference[(b - start) as usize] -= 1;
+                            }
+                        }
+                        position = end;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if difference.is_empty() {
+            return Ok(result);
+        }
+        let mut depth = 0i64;
+        for (i, &delta) in difference[..difference.len() - 1].iter().enumerate() {
+            depth += delta;
+            let value = depth as u32;
+            if value != 0 {
+                result.columns.push((start + i as i64) as i32);
+                result.values.push(value);
+            }
+        }
+        Ok(result)
+    }
+
     pub fn contig_names(&self) -> Vec<String> {
         self.reader
             .header()
