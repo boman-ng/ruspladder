@@ -8,3 +8,4 @@ pub mod events;
 pub mod graph;
 pub mod reads;
 mod sort;
+pub mod sparse;
