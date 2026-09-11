@@ -19,6 +19,10 @@ use std::{
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GraphOptions {
     pub reads: ReadOptions,
+    /// Upstream retains the original filter object after the first IR stage
+    /// restores a copy into read_filter. Subsequent sample builds share this.
+    #[serde(default)]
+    pub retention_read_filter: Option<ReadFilter>,
     pub cassette: CassetteOptions,
     pub retention: RetentionOptions,
     pub intron_edges: IntronOptions,
@@ -41,6 +45,7 @@ impl GraphOptions {
                 filter: Some(filter),
                 ..Default::default()
             },
+            retention_read_filter: None,
             cassette: CassetteOptions {
                 min_cassette_cov: 5.0,
                 min_cassette_region: 0.9,
@@ -235,8 +240,13 @@ pub fn generate(
         }
     }
     if options.insert_ir {
+        if options.retention_read_filter.is_none() {
+            options.retention_read_filter = options.reads.filter.clone();
+        }
+        let mut reads = options.reads.clone();
+        reads.filter = options.retention_read_filter.clone();
         for gene in &mut genes {
-            let track = evidence.coverage(gene, &options.reads)?;
+            let track = evidence.coverage(gene, &reads)?;
             inserted.intron_retention +=
                 augment::insert_retentions(gene, &track, options.retention)?;
         }
