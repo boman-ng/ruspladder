@@ -2,7 +2,7 @@
 use crate::{
     annotation::Gene,
     graph::SegmentGraph,
-    reads::{AlignmentReader, ReadOptions},
+    reads::{EvidenceReader, ReadOptions},
 };
 use anyhow::{Result, ensure};
 use rayon::prelude::*;
@@ -20,7 +20,7 @@ pub struct Counts {
 
 fn count_gene(
     gene: &mut Gene,
-    reader: &mut AlignmentReader,
+    reader: &mut EvidenceReader,
     options: &ReadOptions,
 ) -> Result<Counts> {
     if gene.segmentgraph.segments.is_empty() {
@@ -37,6 +37,10 @@ fn count_gene(
     options.filter = None;
     options.strand = Some(gene.strand);
     let evidence = reader.region(&gene.chr, gene.start, gene.stop, &options)?;
+    ensure!(
+        evidence.coverage.len() == (gene.stop - gene.start) as usize,
+        "counted segments extend beyond sparse coverage"
+    );
     let mut result = Counts {
         segments: Vec::with_capacity(segments.len()),
         seg_pos: Vec::with_capacity(segments.len()),
@@ -81,15 +85,17 @@ pub fn count_sample(
     reference: Option<&Path>,
     options: &ReadOptions,
 ) -> Result<Vec<Counts>> {
+    let mut options = options.clone();
+    options.filter = None;
     genes
         .par_iter_mut()
         .map_init(
-            || AlignmentReader::open(bam, reference),
+            || EvidenceReader::open(bam, reference, &options),
             |reader, gene| {
                 let reader = reader
                     .as_mut()
                     .map_err(|error| anyhow::anyhow!("{error:#}"))?;
-                count_gene(gene, reader, options)
+                count_gene(gene, reader, &options)
             },
         )
         .collect()

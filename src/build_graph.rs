@@ -6,7 +6,7 @@ use crate::{
     editgraph::{self, RemoveExons},
     intron_edges::{self, Inserted, IntronOptions},
     introns::{self, IntronLists},
-    reads::{AlignmentReader, ReadFilter, ReadOptions},
+    reads::{EvidenceReader, ReadFilter, ReadOptions},
     reference::Reference,
 };
 use anyhow::{Result, ensure};
@@ -92,30 +92,65 @@ pub struct GraphInserted {
 }
 
 struct Evidence {
-    readers: Vec<AlignmentReader>,
+    readers: Vec<EvidenceReader>,
     contigs: BTreeSet<String>,
+    samples: usize,
 }
 
 impl Evidence {
-    fn open(bams: &[PathBuf], reference: Option<&Path>) -> Result<Self> {
+    fn open(bams: &[PathBuf], reference: Option<&Path>, options: &ReadOptions) -> Result<Self> {
         ensure!(!bams.is_empty(), "graph augmentation requires alignments");
-        let readers: Vec<_> = bams
+        // Source sparse stages reuse the first file's chromosome cache across
+        // the complete multi-file loop.
+        let paths = if options.sparse_confidence.is_some() {
+            &bams[..1]
+        } else {
+            bams
+        };
+        let readers: Vec<_> = paths
             .iter()
-            .map(|path| AlignmentReader::open(path, reference))
+            .map(|path| EvidenceReader::open(path, reference, options))
             .collect::<Result<_>>()?;
-        // init_regions stops after inspecting the first alignment file.
-        let contigs = readers[0].contig_names().into_iter().collect();
-        Ok(Self { readers, contigs })
+        // init_regions skips missing BAMs and stops at the first existing one.
+        let contigs = if options.sparse_confidence.is_some() {
+            match bams.iter().find(|p| p.exists()) {
+                Some(path) => EvidenceReader::open(path, reference, options)?.contig_names()?,
+                None => Vec::new(),
+            }
+        } else {
+            readers[0].contig_names()?
+        }
+        .into_iter()
+        .collect();
+        Ok(Self {
+            readers,
+            contigs,
+            samples: bams.len(),
+        })
     }
 
     fn coverage(&mut self, gene: &Gene, options: &ReadOptions) -> Result<Vec<u64>> {
         let mut options = options.clone();
-        options.strand = Some(gene.strand);
+        options.strand = if options.sparse_confidence.is_some() {
+            None
+        } else {
+            Some(gene.strand)
+        };
         let mut track = vec![0; (gene.stop - gene.start) as usize];
         for reader in &mut self.readers {
             let evidence = reader.region(&gene.chr, gene.start, gene.stop, &options)?;
+            ensure!(
+                evidence.coverage.len() == track.len(),
+                "graph exons extend beyond sparse coverage"
+            );
             for (total, count) in track.iter_mut().zip(evidence.coverage) {
                 *total += count;
+            }
+        }
+        if options.sparse_confidence.is_some() && self.samples > 1 {
+            // prep_sparse_bam writes collapsed, single-row uint32 coverage.
+            for value in &mut track {
+                *value = (*value as u32).wrapping_mul(self.samples as u32) as u64;
             }
         }
         Ok(track)
@@ -127,6 +162,9 @@ impl Evidence {
         options: &ReadOptions,
         unstranded: bool,
     ) -> Result<IntronLists> {
+        if options.sparse_confidence.is_some() {
+            return self.sparse_introns(genes, options, unstranded);
+        }
         let mut lists: IntronLists = vec![Default::default(); genes.len()];
         let mut options = options.clone();
         options.mapped = false;
@@ -165,6 +203,81 @@ impl Evidence {
         }
         Ok(lists)
     }
+
+    fn sparse_introns(
+        &mut self,
+        genes: &[Gene],
+        options: &ReadOptions,
+        unstranded: bool,
+    ) -> Result<IntronLists> {
+        let mut lists: IntronLists = vec![Default::default(); genes.len()];
+        let selected: Vec<_> = genes
+            .iter()
+            .filter(|g| self.contigs.contains(&g.chr))
+            .collect();
+        let chromosomes: BTreeSet<_> = selected.iter().map(|g| g.chr.as_str()).collect();
+        for chromosome in chromosomes {
+            for strand in ['+', '-'] {
+                for (gene_index, gene) in selected
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, g)| g.chr == chromosome && g.strand == strand)
+                {
+                    let si = usize::from(strand == '-');
+                    let mut reads = options.clone();
+                    reads.strand = Some(strand);
+                    let evidence = self.readers[0].junctions(
+                        chromosome,
+                        (gene.start - 5000).max(1),
+                        gene.stop + 5000,
+                        &reads,
+                    )?;
+                    let mut found = Vec::new();
+                    for (s, rows) in [evidence.introns_plus, evidence.introns_minus]
+                        .into_iter()
+                        .enumerate()
+                    {
+                        if unstranded || s == si {
+                            found.extend(rows);
+                        }
+                    }
+                    let one_sample = found.clone();
+                    for _ in 1..self.samples {
+                        found.extend_from_slice(&one_sample);
+                    }
+                    found.sort();
+                    let mut index = gene_index;
+                    if self.samples > 1 {
+                        let mut keep = vec![true; found.len()];
+                        // Upstream accidentally reuses its gene index as the
+                        // duplicate-intron loop variable. Preserve that target
+                        // and report its observed out-of-bounds failure.
+                        for i in 1..found.len() {
+                            index = i;
+                            if found[i][..2] == found[i - 1][..2] {
+                                found[i][2] = (found[i][2] as u32)
+                                    .wrapping_add(found[i - 1][2] as u32)
+                                    as i64;
+                                keep[i - 1] = false;
+                            }
+                        }
+                        found = found
+                            .into_iter()
+                            .zip(keep)
+                            .filter_map(|(row, keep)| keep.then_some(row))
+                            .collect();
+                    }
+                    ensure!(
+                        index < lists.len(),
+                        "SplAdder sparse multi-BAM intron index {index} is out of bounds for {} genes",
+                        lists.len()
+                    );
+                    lists[index][si] = found;
+                }
+            }
+        }
+        Ok(lists)
+    }
 }
 
 pub fn generate(
@@ -174,7 +287,7 @@ pub fn generate(
     reference: Option<&Path>,
 ) -> Result<(Vec<Gene>, GraphInserted)> {
     ensure!(!genes.is_empty(), "no genes to augment");
-    let mut evidence = Evidence::open(bams, reference)?;
+    let mut evidence = Evidence::open(bams, reference, &options.reads)?;
     for gene in &mut genes {
         gene.splicegraph.sort();
         gene.label_alt();

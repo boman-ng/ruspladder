@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import pysam
 from spladder.count import count_graph_coverage
 from compare_annotations import serialize
 from compare_merge import load_genes
@@ -22,6 +23,7 @@ def main():
     parser.add_argument("--work", type=Path, required=True)
     args = parser.parse_args()
     args.work.mkdir(parents=True, exist_ok=True)
+    (args.work / "report.json").unlink(missing_ok=True)
     cases = []
     basic = args.upstream / "tests/testcase_basic"
     for strand in ["pos", "neg"]:
@@ -35,6 +37,20 @@ def main():
         genes, bams, reference = copy.deepcopy(cases[-2])
         for gene in genes: gene.chr = chromosome
         cases.append((genes, bams, reference))
+    # Direct-BAM counting uses add_reads_from_bam's unstranded=True default:
+    # no-XS reads contribute both coverage and junction support on either strand.
+    unstranded = args.work / "without-xs.bam"
+    with pysam.AlignmentFile(str(cases[0][1][0]), "rb") as source, pysam.AlignmentFile(str(unstranded), "wb", template=source) as output:
+        for read in source:
+            read.set_tag("XS", None)
+            output.write(read)
+    pysam.index(str(unstranded))
+    genes = copy.deepcopy(cases[0][0])
+    minus = copy.deepcopy(genes)
+    for gene in minus:
+        gene.strand = "-"
+        gene.name += "_minus"
+    cases.append((np.r_[genes, minus], [unstranded], cases[0][2]))
     requests, expected = [], []
     for genes, bams, reference in cases:
         for primary in [False, True]:

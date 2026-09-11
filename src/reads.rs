@@ -38,6 +38,8 @@ impl ReadFilter {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ReadOptions {
+    /// Select existing public sparse alignment summaries at this confidence.
+    pub sparse_confidence: Option<u8>,
     pub filter: Option<ReadFilter>,
     pub mapped: bool,
     pub spliced: bool,
@@ -51,6 +53,7 @@ pub struct ReadOptions {
 impl Default for ReadOptions {
     fn default() -> Self {
         Self {
+            sparse_confidence: None,
             filter: None,
             mapped: true,
             spliced: true,
@@ -379,5 +382,70 @@ impl AlignmentReader {
         result.introns_plus = plus.into_iter().map(|([a, b], n)| [a, b, n]).collect();
         result.introns_minus = minus.into_iter().map(|([a, b], n)| [a, b, n]).collect();
         Ok(result)
+    }
+}
+
+/// The two input representations used by the upstream graph/count paths.
+pub enum EvidenceReader {
+    Alignment(AlignmentReader),
+    Sparse(crate::sparse::SparseReader),
+}
+
+impl EvidenceReader {
+    pub fn open(path: &Path, reference: Option<&Path>, options: &ReadOptions) -> Result<Self> {
+        if let Some(confidence) = options.sparse_confidence {
+            Ok(Self::Sparse(crate::sparse::SparseReader::open(
+                &crate::sparse::summary_path(path, confidence, options.filter.is_some())?,
+            )?))
+        } else {
+            Ok(Self::Alignment(AlignmentReader::open(path, reference)?))
+        }
+    }
+    pub fn contig_names(&self) -> Result<Vec<String>> {
+        match self {
+            Self::Alignment(reader) => Ok(reader.contig_names()),
+            Self::Sparse(reader) => reader.contig_names(),
+        }
+    }
+    pub fn region(
+        &mut self,
+        chromosome: &str,
+        start: i64,
+        stop: i64,
+        options: &ReadOptions,
+    ) -> Result<ReadEvidence> {
+        match self {
+            Self::Alignment(reader) => reader.region(chromosome, start, stop, options),
+            Self::Sparse(reader) => {
+                let mut result = reader.query(
+                    chromosome,
+                    start,
+                    stop,
+                    options,
+                    true,
+                    options.strand.is_none(),
+                )?;
+                // Sparse graph counting calls add_reads_from_sparse_bam with
+                // its stranded default, unlike the direct-BAM helper.
+                match options.strand {
+                    Some('-') => result.introns_plus.clear(),
+                    Some(_) => result.introns_minus.clear(),
+                    None => {}
+                }
+                Ok(result)
+            }
+        }
+    }
+    pub fn junctions(
+        &mut self,
+        chromosome: &str,
+        start: i64,
+        stop: i64,
+        options: &ReadOptions,
+    ) -> Result<ReadEvidence> {
+        match self {
+            Self::Alignment(reader) => reader.junctions(chromosome, start, stop, options),
+            Self::Sparse(reader) => reader.query(chromosome, start, stop, options, false, true),
+        }
     }
 }

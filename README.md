@@ -39,8 +39,10 @@ OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/debug/ruspladder build 
   -a annotation.gtf -b sampleA.bam,sampleB.bam -o results --parallel 4
 ```
 
-Annotation `prep`, direct-alignment `build` and differential `test` are available.
-Sparse alignment preparation and sparse input are still being integrated.
+`prep`, direct or sparse-alignment `build`, and differential `test` are available.
+Use `prep -a annotation.gtf -b sample.bam --sparse-bam --parallel 4` to create
+bounded-memory public alignment summaries, then add `--sparse-bam` to `build`.
+All commands accept up to 64 threads; validation uses 1/4 threads.
 No complete-lifecycle runtime or memory improvement is claimed yet.
 
 Upstream source: https://github.com/ratschlab/spladder/tree/v3.1.1

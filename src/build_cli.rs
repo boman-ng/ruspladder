@@ -1,7 +1,8 @@
 // Adapted from SplAdder v3.1.1 spladder_build.py (GPL-3.0-or-later).
+use crate::prep::{alignments, prepare_annotation};
 use crate::{
     analyze::{self, AnalysisOptions},
-    annotation::{self, AnnotationFilters, Gene},
+    annotation::{AnnotationFilters, Gene},
     build_graph::{self, GraphOptions},
     cache, count,
     count_io::{self, CountWriter},
@@ -14,7 +15,6 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use clap::{ArgAction, Args};
-use regex::Regex;
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -158,89 +158,6 @@ pub struct BuildArgs {
     pub psi_min_reads: usize,
     #[arg(long = "qmode", default_value = "all")]
     pub qmode: String,
-}
-
-pub fn prepare_annotation(path: &Path, filters: AnnotationFilters) -> Result<Vec<Gene>> {
-    ensure!(
-        path.is_file(),
-        "annotation does not exist: {}",
-        path.display()
-    );
-    if path.extension().is_some_and(|s| s == "hdf5") {
-        return cache::read_genes(path);
-    }
-    let mut name = path.as_os_str().to_owned();
-    name.push(".ruspladder.hdf5");
-    let cached = PathBuf::from(name);
-    if cached.exists() {
-        return cache::read_genes(&cached);
-    }
-    let annotation = annotation::read_annotation(path, filters)?;
-    cache::write_genes(&cached, &annotation.genes)?;
-    for (suffix, names) in annotation.excluded {
-        let mut report = path.as_os_str().to_owned();
-        report.push(format!(".genes_excluded_{suffix}"));
-        fs::write(report, names.join("\n") + "\n")?;
-    }
-    Ok(annotation.genes)
-}
-
-fn alignments(value: &str) -> Result<(Vec<PathBuf>, Vec<String>)> {
-    let mut names: Vec<String> = value
-        .trim_matches(',')
-        .split(',')
-        .map(str::to_owned)
-        .collect();
-    if names.first().is_some_and(|p| p.ends_with(".txt")) {
-        names = fs::read_to_string(&names[0])?
-            .lines()
-            .flat_map(|line| {
-                line.split('#')
-                    .next()
-                    .unwrap()
-                    .split_whitespace()
-                    .map(str::to_owned)
-            })
-            .collect();
-    }
-    ensure!(!names.is_empty(), "no alignment files supplied");
-    let suffix = Regex::new(r"(?i)(\.bam|\.hdf5)|\.cram$")?;
-    let mut samples = Vec::new();
-    let mut paths = Vec::new();
-    for name in names {
-        let path = PathBuf::from(&name);
-        ensure!(
-            path.is_file(),
-            "alignment does not exist: {}",
-            path.display()
-        );
-        let lower = name.to_lowercase();
-        if lower.ends_with(".bam") {
-            ensure!(
-                Path::new(&format!("{name}.bai")).is_file(),
-                "alignment is not indexed: {name}.bai"
-            );
-        } else if lower.ends_with(".cram") {
-            ensure!(
-                Path::new(&format!("{name}.crai")).is_file()
-                    || path.with_extension("crai").is_file(),
-                "alignment is not indexed: {name}"
-            );
-        }
-        samples.push(
-            suffix
-                .replace_all(
-                    path.file_name()
-                        .context("alignment filename")?
-                        .to_str()
-                        .context("non-UTF8 alignment filename")?,
-                    "",
-                )
-                .into_owned(),
-        );
-        paths.push(path);
-    }
-    Ok((paths, samples))
 }
 
 impl BuildArgs {
@@ -475,8 +392,8 @@ fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
 
 pub fn run(options: &BuildArgs) -> Result<()> {
     ensure!(
-        !options.sparse_bam,
-        "sparse alignment preparation is still being integrated"
+        options.filter_consensus.is_empty() || options.ref_genome.is_some(),
+        "consensus filtering requires --reference"
     );
     ensure!(
         ["single", "merge_graphs", "merge_bams", "merge_all"].contains(&options.merge.as_str()),
@@ -495,7 +412,7 @@ pub fn run(options: &BuildArgs) -> Result<()> {
 }
 
 fn run_build(o: &BuildArgs) -> Result<()> {
-    let (bams, samples) = alignments(&o.bams)?;
+    let (bams, samples) = alignments(&o.bams, o.sparse_bam)?;
     let kinds: Vec<EventType> = o
         .event_types
         .trim_matches(',')
@@ -526,6 +443,7 @@ fn run_build(o: &BuildArgs) -> Result<()> {
         .map(|(i, chr)| (chr, i))
         .collect();
     let reads = ReadOptions {
+        sparse_confidence: o.sparse_bam.then_some(o.confidence),
         primary_only: o.primary_only && !o.no_primary_only,
         var_aware: o.var_aware && !o.no_var_aware,
         no_mm: o.ignore_mismatches,
@@ -549,6 +467,16 @@ fn run_build(o: &BuildArgs) -> Result<()> {
         _ => anyhow::bail!("consensus must be strict or lenient"),
     };
     if o.merge != "merge_graphs" || !o.graph(&o.merge).exists() {
+        if o.sparse_bam {
+            crate::prep::prepare_summaries(
+                &bams,
+                &chromosomes.keys().cloned().collect::<Vec<_>>(),
+                o.ref_genome.as_deref(),
+                &graph_options.reads,
+                o.confidence,
+                o.parallel as usize,
+            )?;
+        }
         let mut generate = |tag: &str, paths: &[PathBuf]| -> Result<()> {
             let output = o.graph(tag);
             if !output.exists() {
@@ -600,6 +528,16 @@ fn run_build(o: &BuildArgs) -> Result<()> {
     } else {
         vec![0]
     };
+    if o.sparse_bam {
+        crate::prep::prepare_summaries(
+            &bams,
+            &chromosomes.keys().cloned().collect::<Vec<_>>(),
+            o.ref_genome.as_deref(),
+            &reads,
+            o.confidence,
+            o.parallel as usize,
+        )?;
+    }
     let nonfinal_chunk = !o.chunked_merge.is_empty() && o.chunked_merge[0] < o.chunked_merge[1];
     if o.quantify_graph && !o.no_quantify_graph && !nonfinal_chunk {
         for &index in &indices {

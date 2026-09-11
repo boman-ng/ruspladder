@@ -73,8 +73,7 @@ MIGRATION.md. These are observed contracts and failures, not proposed fixes.
 
 The CLI test path explicitly disables exon-count augmentation of isoform counts
 and event-ID construction. Legacy direct graph quantifiers and unused experimental
-helper paths are not substituted for that production path. Remaining advanced
-graph failure paths still need explicit reproduction before the final report.
+helper paths are not substituted for that production path. The reproduced advanced graph failures are listed below.
 
 Primary implementation references: SplAdder v3.1.1 count.py,
 alt_splice/{analyze,quantify,write}.py and spladder_test.py; statsmodels 0.14.4
@@ -109,3 +108,31 @@ quantification tries to load the absent final graph; and graph validation with
 explicit native errors. Successful external chunk workflows disable extraction
 and quantification until the final level; per-sample quantification supplies one
 sample per call and disables event extraction until collection.
+
+
+Sparse alignment prep uses bounded windows and preserves the public COO names,
+shapes, dtypes and values. The serial reference leaves `_reads_shp` uncompressed;
+its parallel collector compresses that dataset too, which native prep preserves.
+Chunks and unlimited append extents are storage choices, not value interfaces.
+The source ignores `--ignore-mismatches` in sparse prep; missing NM tags still
+fail there even when direct-alignment build succeeds with that option.
+
+The upstream CRAM prep CLI refers to an absent `cram_ref` attribute. Native prep
+forwards `--reference` to HTSlib. Twelve native arrays are compared against the
+unmodified working upstream `summarize_chr` API supplied with its expected
+attribute. This is an intentional CLI wiring repair, not a successful upstream
+CRAM CLI comparison. The direct-CRAM build CLI remains separately verified.
+
+Sparse multi-BAM graph generation reuses the first file's chromosome cache.
+Its duplicate-intron loop also overwrites the gene index, sometimes assigning
+introns to another gene or failing out of bounds. The migration retains those
+observed results and explicit failures; eight valid core builds and four source
+IndexErrors are checked separately. Normal `merge_graphs` builds each sample
+before merging, and the complete sparse CLI suite covers all four merge modes.
+Sparse counting retains its strand behavior, which differs from the direct-BAM
+helper's default treatment of untagged junctions.
+
+When a BAM is absent, `--sparse-bam` accepts its complete `.hdf5` summary without
+requiring the original BAM index. Existing graphs can be recounted; rebuilding
+from annotation also preserves `init_regions` skipping absent BAMs. Both paths
+are compared against source output using isolated copies with BAMs removed.

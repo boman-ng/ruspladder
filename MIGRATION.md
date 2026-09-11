@@ -28,13 +28,13 @@
 
 - [x] Reproducible reference environment, complete CLI inventory, fixture manifests.
 - [x] Annotation parsing/filtering, splice/segment graph primitives and caches.
-- [ ] BAM/CRAM filtering, coverage, sparse prep, reference lookup.
-- [ ] Graph augmentation, re-inference, pruning, merge strategies.
+- [x] BAM/CRAM filtering, coverage, sparse prep, reference lookup.
+- [x] Graph augmentation, pruning, merge strategies and source re-inference failure.
 - [x] Six event detectors, collection, sorting, curation, feature verification.
 - [x] Segment/junction counts, gene expression, PSI, public build result formats.
 - [x] Normalization, NB/Gamma GLM, dispersion fitting/shrinkage, LRT and correction.
-- [ ] Full prep/build/test orchestration and cache reuse.
-- [ ] Upstream fixtures and airway real-data differential verification.
+- [x] Full prep/build/test orchestration and cache reuse.
+- [x] Upstream fixtures and airway real-data differential verification.
 - [ ] 1/4-thread determinism and 4 CPU / 8 GiB lifecycle benchmarks.
 - [ ] P0 investigation, all required checks, final compatibility and performance reports.
 
@@ -59,10 +59,11 @@ do not replace the statistical method with another model.
 Development worktree: /home/wubw/data/ruspladder/worktree (branch implement).
 Reference checkout: ../upstream/spladder; reference Python: ../envs/reference/bin/python.
 Existing Git entrypoint: /home/wubw/ruspladder (empty initial master).
-Slurm partition soma enforces 4 logical CPUs and 8,589,934,592 bytes memory,
-verified in runs/resource-probe.json. Slurm accounting is disabled, so benchmarks
-must gather their own CPU, memory and I/O measurements.
-No full migration or benchmark success has been established.
+The initial Slurm resource probe confirmed 4 CPUs / 8 GiB. With Slurmctld
+unavailable, scripts/run_constrained.sh now enforces the same limits in Docker;
+scripts/resource_probe.py checks the actual cgroup and CPU affinity. Measurements
+include process CPU, RSS, cgroup peak, I/O and complete command stage timings.
+Final lifecycle benchmark acceptance is still pending.
 
 P0 candidate identified in reads.summarize_chr: dense (3, chromosome_length)
 uint32 coverage allocation before sparse conversion, ~3 GB per 250 Mb contig.
@@ -77,7 +78,7 @@ Docker cgroup-v1 enforcement has since been verified at 4 CPUs / 8 GiB using
 the same locked environment. Three interleaved airway runs and 18 exact arrays
 pass: source 2.257–2.308 s / about 1.93 GiB cgroup peak, native 0.0331–0.0357 s /
 about 19–20 MiB. Native also completes the four-contig OOM reproducer. The P0
-gate is satisfied; sparse-input integration remains. See
+gate is satisfied; the implementation was merged at 1a44852. See
 ../runs/p0-docker-benchmark/report.json and the branch RESEARCH.md.
 
 A second candidate, perf/p0-hdf5-chunks at 7e2f370, reproduced 64 MiB automatic
@@ -112,7 +113,7 @@ Current differential checks against that reference:
 | Complete direct-BAM graph generation, including airway | 45 | build-graphs-retention-state/report.json |
 | Sequential samples with >200 introns and persistent IR filter state | 2 samples / 201 introns | build-sequence-fixed/report.json |
 | Sample/chunk merge, support filtering, cache roundtrip | 42 | merge-parity/report.json |
-| Graph segment/junction counting, 1/4 threads | 24 | count-parity/report.json |
+| Graph segment/junction counting, 1/4 threads, including no-XS reads | 28 | count-after-sparse/report.json |
 | Six event feature vectors, flags, PSI | 1330 | verify-parity/report.json |
 | Public graph counts and gene expression | 60 files / 560 arrays | check-20260911T205705/count-io/report.json |
 | Geometric-mean and total-count normalization | 160 | check-20260911T205705/count-io/report.json |
@@ -152,8 +153,8 @@ for bounded access. Text comparisons are exact bytes after gzip decompression.
 Upstream's unimplemented structured multi-exon output and BED multi-exon/mutex
 output are reproduced and documented in COMPATIBILITY.md, not invented.
 The latest complete regression, including both full test CLI suites, is
-recorded in check-20260911T224304 and check-build-current.log; it also includes
-the direct build and external workflow suites.
+recorded in check-20260911T233626 and check-sparse-current.log; it includes
+the direct/sparse build, external workflow, prep and cache-only suites.
 Its earlier quantification fixture enumeration
 missed a synthetic multi-exon fixture; that guard was corrected before this run.
 The new run also confirms exact event feature/PSI values after enabling exact
@@ -172,5 +173,13 @@ validation and all text formats (build-cli-complete/report.json). These counts
 include rechecking reused outputs. The workflow suite additionally covers
 per-sample count collection and two-level external merges (8 graphs / 203 arrays),
 and separately reproduces five upstream errors (build-workflows-width-fixed).
-Sparse-input integration, alignment-prep CLI and lifecycle benchmarking remain open.
-No end-to-end replacement or full-lifecycle runtime/memory improvement is claimed yet.
+Sparse input and alignment-prep CLI are integrated. The sparse CLI suite covers
+seven scenarios at 1/4 threads with fresh and reused caches (14 comparisons,
+312 summary arrays, sparse-cli-complete/report.json). Bounded queries pass
+1,344 comparisons (sparse-query-parity); source multi-BAM index failures are
+recorded separately (sparse-build-index-fixed). Missing-BAM cache recount and
+regeneration pass (cache-only-fixed, cache-only-regenerate). CRAM prep CLI wiring
+and the source missing-NM behavior are documented in COMPATIBILITY.md.
+The complete integration regression passed (check-20260911T233626). Prep checks
+cover all four confidence levels at 1/4 threads: 8 cases / 192 arrays.
+Final lifecycle benchmark acceptance remains in progress.

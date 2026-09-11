@@ -23,6 +23,7 @@ pub mod merge;
 pub mod numeric;
 pub mod optimize;
 pub mod output;
+pub mod prep;
 pub mod quantify;
 pub mod reads;
 pub mod reference;
