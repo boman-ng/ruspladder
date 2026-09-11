@@ -10,13 +10,13 @@ mkdir -p "$run_root"
 printf '%s\n' "$run_root"
 for run_label in reference-0 rust-0 rust-1 reference-1 reference-2 rust-2; do
     run_mode=${run_label%-*}
-    srun --partition=soma --ntasks=1 --cpus-per-task=4 --mem=8192M --hint=nomultithread --cpu-bind=threads --time=00:03:00 \
+    bash "$repo_root/scripts/run_constrained.sh" \
         "$task_root/envs/reference/bin/python" "$repo_root/scripts/benchmark_sparse.py" \
         --mode "$run_mode" --probe "$task_root/target/release/examples/sparse_probe" \
         --bam "$task_root/fixtures/airway/SRR1039508_subset.bam" --chromosomes 1 \
         --work "$run_root/$run_label" > "$run_root/$run_label.log" 2>&1
 done
-srun --partition=soma --ntasks=1 --cpus-per-task=4 --mem=8192M --hint=nomultithread --cpu-bind=threads --time=00:03:00 \
+bash "$repo_root/scripts/run_constrained.sh" \
     "$task_root/envs/reference/bin/python" "$repo_root/scripts/benchmark_sparse.py" \
     --mode rust --probe "$task_root/target/release/examples/sparse_probe" \
     --bam "$task_root/runs/p0-coverage-parallel/long-contigs.bam" --chromosomes contig0,contig1,contig2,contig3 \

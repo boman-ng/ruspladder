@@ -76,3 +76,35 @@ The first interleaved benchmark submission failed before any workload ran:
 Evidence: ../runs/p0-benchmark-20260911T195314/reference-0.log.
 This is an infrastructure failure, not a native performance result. The 4 CPU /
 8 GiB benchmark remains required; do not substitute an unenforced local run.
+
+## Enforced benchmark and adoption decision (2026-09-11)
+
+The local Docker daemon provides the required cgroup-v1 enforcement while Slurm
+is unavailable. The resource probe resolves the cgroup filesystem's mount root,
+which differs between Docker and Slurm. Every run confirmed affinity [0,1,2,3]
+and the hard memory limit 8,589,934,592 bytes. Swap is disabled with equal memory
+and memory-swap limits. The existing image is pinned by digest in
+scripts/run_constrained.sh; the locked host Python environment and native binary
+are bind-mounted, with no dependency downloads. See the
+[Docker resource constraints reference](https://docs.docker.com/engine/containers/resource_constraints/).
+
+Three interleaved real-airway chromosome-1 runs, including child process startup:
+
+| Implementation | Wall seconds | Process RSS KiB | Cgroup peak bytes | Mean cores |
+| --- | ---: | ---: | ---: | ---: |
+| SplAdder, 3 runs | 2.257–2.308 | 2,012,636–2,012,844 | 2,067,472,384–2,068,078,592 | 0.995–0.997 |
+| Rust, 3 runs | 0.0331–0.0357 | 16,292–16,460 | 20,312,064–20,668,416 | 1.055–1.061 |
+
+All 18 real-data output arrays agree exactly in shape, dtype and values.
+The native four-contig OOM reproducer completed in 0.107 s with a 35,467,264-byte
+cgroup peak under the same limits. The previous reference OOM/hang remains a
+failure, not a successful runtime to include in speedup calculations.
+Full per-run CPU time, I/O, resource snapshots and data comparisons are retained
+in ../runs/p0-docker-benchmark/report.json. The benchmark uses one contig for the
+real subset, so upstream's four-worker pool has only one active chromosome task.
+
+Decision: adopt the bounded-window implementation. Exact prototype parity
+(96 summaries / 1,008 arrays), the real-data comparison and measured memory/time
+benefits satisfy the P0 branch gate. The decision preserves filters and counting
+semantics. Whole-pipeline fresh/reused performance and sparse-input integration
+remain separate acceptance work.
