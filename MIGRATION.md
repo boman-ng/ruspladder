@@ -31,8 +31,8 @@
 - [ ] BAM/CRAM filtering, coverage, sparse prep, reference lookup.
 - [ ] Graph augmentation, re-inference, pruning, merge strategies.
 - [x] Six event detectors, collection, sorting, curation, feature verification.
-- [x] Segment/junction counts, gene expression, PSI, public build result formats (CLI wiring pending).
-- [ ] Normalization, NB/Gamma GLM, dispersion fitting/shrinkage, LRT and correction.
+- [x] Segment/junction counts, gene expression, PSI, public build result formats.
+- [x] Normalization, NB/Gamma GLM, dispersion fitting/shrinkage, LRT and correction.
 - [ ] Full prep/build/test orchestration and cache reuse.
 - [ ] Upstream fixtures and airway real-data differential verification.
 - [ ] 1/4-thread determinism and 4 CPU / 8 GiB lifecycle benchmarks.
@@ -50,7 +50,7 @@ GPL-3.0-or-later notices. The combined migration is conservatively GPL-3.0-or-la
 with upstream BSD and file-specific notices retained in licenses/ and source
 attribution. Third-party libraries retain their own licenses.
 
-Reuse rust-htslib, Rayon, hdf5-metno, nalgebra and statrs where applicable.
+Reuse rust-htslib, Rayon, hdf5-metno and the pinned native OpenBLAS/LAPACK kernels.
 Port the called statsmodels/SciPy numerical paths when required for parity;
 do not replace the statistical method with another model.
 
@@ -71,10 +71,14 @@ One worker reached 1,998,336 KiB RSS with only two short reads per contig;
 four workers on four 300 Mb contigs caused two OOM kills under the enforced
 8 GiB limit, followed by a hung upstream pool until the job timeout.
 The bounded-window native prototype is committed separately at 9955eb2;
-96 sparse summaries / 1,008 HDF5 arrays pass exact parity. It remains unmerged
-pending performance evidence. Slurmctld is currently DOWN; the benchmark failed
-before starting with an allocation/connect error. Ordinary local timings do not
-substitute for the required enforced 4 CPU / 8 GiB run.
+96 sparse summaries / 1,008 HDF5 arrays pass exact parity. Slurmctld is DOWN;
+the initial benchmark failed before starting with an allocation/connect error.
+Docker cgroup-v1 enforcement has since been verified at 4 CPUs / 8 GiB using
+the same locked environment. Three interleaved airway runs and 18 exact arrays
+pass: source 2.257–2.308 s / about 1.93 GiB cgroup peak, native 0.0331–0.0357 s /
+about 19–20 MiB. Native also completes the four-contig OOM reproducer. The P0
+gate is satisfied; sparse-input integration remains. See
+../runs/p0-docker-benchmark/report.json and the branch RESEARCH.md.
 
 A second candidate, perf/p0-hdf5-chunks at 7e2f370, reproduced 64 MiB automatic
 chunks on an unlimited sample axis. Its release 8-by-2 matrix microbenchmark
@@ -105,7 +109,8 @@ Current differential checks against that reference:
 | Cassette insertion and intron retention from matched coverage | 1278 | augmentation-parity/report.json |
 | Intron edge insertion from matched coverage | 840 | intron-parity/report.json |
 | Intron ambiguity / FASTA consensus filtering | 100 | intron-filter-parity/report.json |
-| Complete direct-BAM graph generation, including airway | 45 | build-graph-parity/report.json |
+| Complete direct-BAM graph generation, including airway | 45 | build-graphs-retention-state/report.json |
+| Sequential samples with >200 introns and persistent IR filter state | 2 samples / 201 introns | build-sequence-fixed/report.json |
 | Sample/chunk merge, support filtering, cache roundtrip | 42 | merge-parity/report.json |
 | Graph segment/junction counting, 1/4 threads | 24 | count-parity/report.json |
 | Six event feature vectors, flags, PSI | 1330 | verify-parity/report.json |
@@ -147,19 +152,25 @@ for bounded access. Text comparisons are exact bytes after gzip decompression.
 Upstream's unimplemented structured multi-exon output and BED multi-exon/mutex
 output are reproduced and documented in COMPATIBILITY.md, not invented.
 The latest complete regression, including both full test CLI suites, is
-recorded in check-20260911T221010 and check-cli-current.log.
+recorded in check-20260911T224304 and check-build-current.log; it also includes
+the direct build and external workflow suites.
 Its earlier quantification fixture enumeration
 missed a synthetic multi-exon fixture; that guard was corrected before this run.
 The new run also confirms exact event feature/PSI values after enabling exact
 JSON float round trips. See NUMERICS.md for the native kernel decisions and
 the retained failed numerical comparisons that led to them.
 
-The CLI implements annotation prep and the complete nonvisual differential
-test path from counted HDF5 plus native graph/event caches. The CLI comparisons
+The CLI implements direct-alignment build, annotation prep and the complete
+nonvisual differential test path from counted HDF5 plus native graph/event caches. The test CLI comparisons
 use a reference-only fixture importer, not a production pickle dependency.
 Native caches publish completed files atomically; injected write failures
 leave old cache bytes intact. Event caches preserve full ragged isoforms.
-Sparse-input integration, the build/alignment-prep CLI, build cache reuse and
-lifecycle benchmarking remain open. Test CLI comparisons do not establish
-raw-alignment-to-result parity.
+The direct build CLI has 26 comparisons at 1/4 threads with fresh and reused
+results: 132 graph comparisons, 312 event collections, 4,564 public HDF5 array
+comparisons and 680 text files, including BAM, CRAM, airway, all merge strategies,
+validation and all text formats (build-cli-complete/report.json). These counts
+include rechecking reused outputs. The workflow suite additionally covers
+per-sample count collection and two-level external merges (8 graphs / 203 arrays),
+and separately reproduces five upstream errors (build-workflows-width-fixed).
+Sparse-input integration, alignment-prep CLI and lifecycle benchmarking remain open.
 No end-to-end replacement or full-lifecycle runtime/memory improvement is claimed yet.

@@ -173,15 +173,21 @@ pub fn compute(
     )?;
     if let Some(path) = output {
         let out = File::create(path)?;
-        hdf5io::strings(
-            &out,
-            "samples",
-            &[indices.len()],
+        // NumPy slicing preserves the input byte width, including the S255
+        // labels produced by per-sample count collection.
+        let sample_dataset = out
+            .new_dataset_builder()
+            .empty_as(&input.dataset("samples")?.dtype()?.to_descriptor()?)
+            .shape(indices.len())
+            .deflate(4)
+            .chunk_min_kb(64)
+            .create("samples")?;
+        hdf5io::write_strings(
+            &sample_dataset,
             &indices
                 .iter()
                 .map(|&i| samples[i].as_str())
                 .collect::<Vec<_>>(),
-            true,
         )?;
         out.link_soft("/samples", "strains")?;
         hdf5io::strings(

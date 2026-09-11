@@ -31,9 +31,16 @@ OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/debug/ruspladder test \
   -o results -a sampleA1,sampleA2 -b sampleB1,sampleB2 --parallel 4
 ```
 
-Annotation `prep` and differential `test` are available. The build command and
-alignment preparation are still being wired; this example assumes the counted
-inputs and native caches already exist. No raw-alignment-to-result benchmark is
-claimed yet.
+`build` now connects annotation, BAM/CRAM graph generation, merging, graph counts,
+event verification and all nonvisual outputs. For example:
+
+```sh
+OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/debug/ruspladder build \
+  -a annotation.gtf -b sampleA.bam,sampleB.bam -o results --parallel 4
+```
+
+Annotation `prep`, direct-alignment `build` and differential `test` are available.
+Sparse alignment preparation and sparse input are still being integrated.
+No complete-lifecycle runtime or memory improvement is claimed yet.
 
 Upstream source: https://github.com/ratschlab/spladder/tree/v3.1.1

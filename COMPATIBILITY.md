@@ -82,3 +82,30 @@ stats/multitest.py. The HDF5 chunk decision follows the
 [HDF Group partial-I/O guidance](https://support.hdfgroup.org/documentation/hdf5/latest/hdf5_chunking.html).
 Gzip output uses [flate2's streaming encoder](https://docs.rs/flate2/1.1.10/flate2/write/struct.GzEncoder.html)
 over the already linked zlib; gzip headers are not a byte-identity interface.
+
+Sequential graph generation shares read-filter state across samples. The source
+feasibility loop raises the minimum exon length/support when a gene has more
+than 200 introns. The first retention stage saves a copy into `read_filter`,
+detaching it from the filter dictionary retained by `intron_retention`.
+Later samples use the current filter for intron selection/cassette coverage and
+the retained first-stage filter for retention coverage. The regression with
+201 distinct introns changes the current exon minimum from 17 to 21, while
+retention stays at 17; both samples insert one retention. Treating these filters
+as one value lost the second retention and changed the graph and alternative
+label. The native options now retain the same state across sequential builds.
+
+Build orchestration preserves cache-existence reuse and the source's file naming
+for public counts, expression and event outputs. Full graph/event caches use
+`.hdf5` / `.events.hdf5` in place of internal pickle. Collected count labels retain
+S255 width in downstream gene-expression HDF5. Diagnostic progress/log formatting
+is native; scientific text files are compared byte-for-byte after decompression.
+
+The following build paths are separately reproduced as upstream failures:
+`--re-infer-sg` calls an undefined function; `single` with multiple samples lacks
+an event cache for the second sample; `--qmode single` with multiple supplied
+samples later indexes beyond its one count column; a nonfinal chunk with default
+quantification tries to load the absent final graph; and graph validation with
+`merge_bams` requests a validated graph that the source never creates. These are
+explicit native errors. Successful external chunk workflows disable extraction
+and quantification until the final level; per-sample quantification supplies one
+sample per call and disables event extraction until collection.

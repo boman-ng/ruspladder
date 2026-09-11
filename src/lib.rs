@@ -2,6 +2,7 @@
 pub mod analyze;
 pub mod annotation;
 pub mod augment;
+pub mod build_cli;
 pub mod build_graph;
 pub mod cache;
 pub mod correction;

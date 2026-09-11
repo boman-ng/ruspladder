@@ -1,9 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
-use ruspladder::{
-    annotation::{AnnotationFilters, read_annotation},
-    cache,
-};
+use ruspladder::annotation::AnnotationFilters;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -19,6 +16,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Build, merge, quantify graphs and report alternative splicing events.
+    Build(Box<ruspladder::build_cli::BuildArgs>),
     /// Differentially test counted events between two conditions.
     Test(Box<ruspladder::test_cli::TestArgs>),
     /// Prepare annotation graphs. Alignment preparation is still being migrated.
@@ -40,6 +39,7 @@ enum Command {
 
 fn run() -> Result<()> {
     match Cli::parse().command {
+        Command::Build(options) => ruspladder::build_cli::run(&options)?,
         Command::Test(options) => ruspladder::test_cli::run(&options)?,
         Command::Prep {
             annotation,
@@ -53,7 +53,7 @@ fn run() -> Result<()> {
                 .num_threads(parallel as usize)
                 .build()?;
             let result = pool.install(|| {
-                read_annotation(
+                ruspladder::build_cli::prepare_annotation(
                     &annotation,
                     AnnotationFilters {
                         overlap_genes: filter_overlap_genes,
@@ -62,21 +62,11 @@ fn run() -> Result<()> {
                     },
                 )
             })?;
-            let mut cache_name = annotation.as_os_str().to_owned();
-            cache_name.push(".ruspladder.hdf5");
-            let cache_path = PathBuf::from(cache_name);
-            cache::write_genes(&cache_path, &result.genes)?;
-            for (suffix, names) in result.excluded {
-                let mut report = annotation.as_os_str().to_owned();
-                report.push(format!(".genes_excluded_{suffix}"));
-                std::fs::write(&report, names.join("\n") + "\n")
-                    .context("write annotation exclusion report")?;
-            }
             if verbose {
                 eprintln!(
-                    "Prepared {} genes in {}",
-                    result.genes.len(),
-                    cache_path.display()
+                    "Prepared {} genes from {}",
+                    result.len(),
+                    annotation.display()
                 );
             }
         }
