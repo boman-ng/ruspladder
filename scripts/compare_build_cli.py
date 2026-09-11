@@ -66,6 +66,9 @@ for name,annotation,bams,ref,extra in scenarios:
    for path in (root/'native-1').rglob('*.hdf5'):
     if not path.name.endswith(('.count.hdf5','.counts.hdf5','.gene_exp.hdf5')):continue
     with h5py.File(path) as one,h5py.File(native/path.relative_to(root/'native-1')) as four:
-     for key in one:np.testing.assert_array_equal(one[key][...],four[key][...],err_msg=f'thread determinism {path} {key}')
+     for key in one:
+      x,y=one[key][...],four[key][...]
+      np.testing.assert_array_equal(x,y,err_msg=f'thread determinism {path} {key}')
+      if x.dtype.kind=='f':assert x.tobytes()==y.tobytes(),f'float bits differ: {path} {key}'
  print('PASS:',name,flush=True)
 report=dict(**comparisons,threads=[1,4],result='pass');(a.work/'report.json').write_text(json.dumps(report,indent=2)+'\n');print('PASS:',report)

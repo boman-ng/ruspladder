@@ -39,6 +39,9 @@ for name,annotation,bams,extra in cases:
  for path in outputs[1].rglob('*.hdf5'):
   if not path.name.endswith(('.count.hdf5','.counts.hdf5','.gene_exp.hdf5')):continue
   with h5py.File(path) as one,h5py.File(outputs[2]/path.relative_to(outputs[1])) as four:
-   for key in one:np.testing.assert_array_equal(one[key][...],four[key][...])
+   for key in one:
+    x,y=one[key][...],four[key][...]
+    np.testing.assert_array_equal(x,y)
+    if x.dtype.kind=='f':assert x.tobytes()==y.tobytes(),f'float bits differ: {path} {key}'
  print('PASS:',name,flush=True)
 report=dict(cases=len(reports),summary_arrays=arrays,outputs=reports,result='pass');(a.work/'report.json').write_text(json.dumps(report,indent=2)+'\n');print('PASS:',report)
