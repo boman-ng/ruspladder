@@ -19,6 +19,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Differentially test counted events between two conditions.
+    Test(Box<ruspladder::test_cli::TestArgs>),
     /// Prepare annotation graphs. Alignment preparation is still being migrated.
     Prep {
         #[arg(short, long)]
@@ -29,7 +31,7 @@ enum Command {
         filter_overlap_exons: bool,
         #[arg(long)]
         filter_overlap_transcripts: bool,
-        #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u16).range(1..))]
+        #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u16).range(1..=64))]
         parallel: u16,
         #[arg(short, long)]
         verbose: bool,
@@ -38,6 +40,7 @@ enum Command {
 
 fn run() -> Result<()> {
     match Cli::parse().command {
+        Command::Test(options) => ruspladder::test_cli::run(&options)?,
         Command::Prep {
             annotation,
             filter_overlap_genes,

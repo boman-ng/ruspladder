@@ -19,7 +19,7 @@ termination/evaluation rules. `likelihood.rs` retains the reference's actual
 Cox–Reid determinant computation. `statistics.rs` follows raw dispersion,
 Gamma trend, empirical prior, shrunken dispersion, LRT and final isoform choice.
 
-Three observed compatibility problems determined the implementation:
+Observed compatibility problems determined the implementation:
 
 1. A zero-heavy four-sample case produces an information matrix with entries
    around 1e-10 and 400. A nalgebra LU substitute changed the likelihood
@@ -38,6 +38,13 @@ Three observed compatibility problems determined the implementation:
    `cephes_log1p` from unity.c (confirmed by disassembly). Reusing this source
    approximation removed the differences, including all 113 objective
    evaluations from a second trace. No tolerances or optimizer settings changed.
+4. Full CLI option combinations exposed a 5.6e-6 p-value difference for intron
+   retention with non-alt normalization. The reference's selected gene counts
+   are Fortran-order (16-by-20, strides 8/128); PSI is likewise Fortran-order
+   (3-by-20, strides 8/24). NumPy reduces these strided rows sequentially, whereas
+   the copied row-major test inputs had used pairwise addition. Native code now
+   preserves the reduction order at these two owning boundaries. Correcting
+   both the implementation and the mocks passes all 108 CLI option TSV checks.
 
 The regression includes NB/Gamma families, zero-heavy and large counts,
 convergence flags, intermediate dispersions, final p-values and isoform choices,

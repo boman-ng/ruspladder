@@ -65,7 +65,7 @@ pub fn prepare_expression(
     cap_outliers: bool,
 ) -> Result<ExpressionInput> {
     ensure!(samples > 0, "testing requires samples");
-    let size_factors = expression::size_factors(&counts, samples, Normalization::Geomean)?;
+    let size_factors = expression::size_factors_column_subset(&counts, samples)?;
     let capped = if cap_outliers {
         counts
             .iter_mut()
@@ -95,13 +95,16 @@ pub struct Prepared {
 }
 
 fn nanmean(values: &[f64]) -> f64 {
+    nanmean_with_sum(values, numeric::sum)
+}
+
+fn nanmean_with_sum(values: &[f64], sum: fn(&[f64]) -> f64) -> f64 {
     let count = values.iter().filter(|x| !x.is_nan()).count();
-    numeric::sum(
-        &values
-            .iter()
-            .map(|&x| if x.is_nan() { 0.0 } else { x })
-            .collect::<Vec<_>>(),
-    ) / count as f64
+    sum(&values
+        .iter()
+        .map(|&x| if x.is_nan() { 0.0 } else { x })
+        .collect::<Vec<_>>())
+        / count as f64
 }
 
 pub fn prepare_events(
@@ -160,7 +163,13 @@ pub fn prepare_events(
             {
                 0.0
             } else {
-                nanmean(&row[..group_a]) - nanmean(&row[group_a..])
+                // quantify's np.c_ of transposed arrays leaves PSI in F order.
+                let sum = if n > 1 {
+                    numeric::sum_strided
+                } else {
+                    numeric::sum
+                };
+                nanmean_with_sum(&row[..group_a], sum) - nanmean_with_sum(&row[group_a..], sum)
             }
         })
         .collect();

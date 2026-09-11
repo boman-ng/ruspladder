@@ -55,6 +55,21 @@ MIGRATION.md. These are observed contracts and failures, not proposed fixes.
   columns. Internal test_setup pickle dictionaries become HDF5 with the same
   values. The 48 writer comparisons inject fixed statistical results into
   the actual upstream test function; they do not count as full CLI tests.
+- The real gene-expression column selection and quantified PSI are Fortran-order
+  arrays in NumPy. Their row reductions use sequential addition; count matrices
+  use pairwise addition. The complete CLI option check exposed a 5.6e-6 p-value
+  error before this distinction was reproduced. The input mock now preserves
+  the actual array order, and the CLI checks include non-alt normalization,
+  both outlier switches, high-memory input, labels, tags and reversed CRAM groups.
+- The upstream boolean `--timestamp` is compared to the string `y`; the CLI
+  consequently never adds a timestamp. Native naming preserves this behavior.
+  A one-entry condition text file fails upstream with `iteration over a 0-d
+  array`; native parsing reports the corresponding singleton-list error.
+- The committed mutex fixture has too few distinct raw dispersions after
+  percentile trimming, leaving an empty Gamma trend design. Upstream and native
+  test commands both fail explicitly. A separate heterogeneous 64-event
+  fixture successfully tests mutex and all five other event types through
+  the full command. These upstream failures are not counted as successful fits.
 
 The CLI test path explicitly disables exon-count augmentation of isoform counts
 and event-ID construction. Legacy direct graph quantifiers and unused experimental

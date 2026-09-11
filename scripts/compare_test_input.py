@@ -48,11 +48,11 @@ for samples in [4,8,16,33]:
                     _,options=parse_options(['spladder','test','-o',str(root),'-a',','.join(labels[:group_a]),'-b',','.join(labels[group_a:]),'--event-types','exon_skip'])
                     options.cap_exp_outliers=cap_exp;options.cap_outliers=cap_ev;options.min_dpsi=min_dpsi
                     captured={}
-                    def get_expression(*args,**kwargs): return genes.copy(),labels.copy(),np.arange(samples),np.array([f'g{i}' for i in range(30)]),np.array([f'G{i}' for i in range(30)])
+                    def get_expression(*args,**kwargs): return genes.copy(order='F'),labels.copy(),np.arange(samples),np.array([f'g{i}' for i in range(30)]),np.array([f'G{i}' for i in range(30)])
                     def quantify(*args,**kwargs):
                         frame=inspect.currentframe().f_back.f_locals
                         captured['expression']=dict(counts=frame['gene_counts'].copy(),size_factors=frame['sf_ge'].copy(),capped=frame.get('outlier_cnt',0))
-                        return [coverage[0].copy(),coverage[1].copy()],psi.copy(),gene_idx.copy(),event_idx.copy(),None,labels.copy()
+                        return [coverage[0].copy(),coverage[1].copy()],psi.copy(order='F'),gene_idx.copy(),event_idx.copy(),None,labels.copy()
                     def capture(cov,null,alternative,sf,options,event_type,selected):
                         frame=inspect.currentframe().f_back.f_locals
                         captured['prepared']=dict(counts=cov.copy(),size_factors=sf.copy(),event_size_factors=frame['sf_ev'].copy(),null=null.copy(),alternative=alternative.copy(),selected=selected.copy(),delta_psi=frame['delta_psi'].copy(),event_idx=frame['event_idx'].copy(),gene_idx=frame['gene_idx'].copy())

@@ -4,8 +4,8 @@ An in-progress Rust migration of SplAdder v3.1.1. The intended scope is the
 complete `prep`, `build`, and differential `test` workflow, excluding plots.
 This is not yet a complete or validated replacement for SplAdder.
 
-The production pipeline must run without Python. Python is used only to generate
-and compare reference results. Public tabular and HDF5 results remain compatible;
+The production pipeline runs without Python. Python is a build/reference tool.
+Public tabular and HDF5 results remain compatible;
 Python pickle caches are outside the compatibility contract.
 
 See [MIGRATION.md](MIGRATION.md) for requirements, progress, and verification.
@@ -23,5 +23,17 @@ The binary links these native libraries and needs no Python interpreter.
 Keep `OPENBLAS_NUM_THREADS=1` when launching it: event rows use Rayon, and
 this also prevents OpenBLAS's loader from creating an idle 64-thread pool.
 The library additionally fixes BLAS computation to one thread.
+
+`test` now runs from native graph/event caches and public counted HDF5 files:
+
+```sh
+OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/debug/ruspladder test \
+  -o results -a sampleA1,sampleA2 -b sampleB1,sampleB2 --parallel 4
+```
+
+Annotation `prep` and differential `test` are available. The build command and
+alignment preparation are still being wired; this example assumes the counted
+inputs and native caches already exist. No raw-alignment-to-result benchmark is
+claimed yet.
 
 Upstream source: https://github.com/ratschlab/spladder/tree/v3.1.1

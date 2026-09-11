@@ -111,7 +111,7 @@ pub fn write_results(
     for i in order {
         let event = &events[prepared.event_idx[i]];
         let gene = prepared.gene_idx[i];
-        let (positions, usage) = event.exon_coordinate_strings();
+        let (positions, usage) = event.coordinate_strings();
         let mut row = vec![
             format!("{}.{}", options.kind.as_str(), prepared.event_idx[i] + 1),
             event.chr.clone(),

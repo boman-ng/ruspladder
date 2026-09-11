@@ -8,7 +8,7 @@ export TMPDIR="$task_root/tmp"
 cd "$repo_root"
 scripts/cargo.sh fmt -- --check
 scripts/cargo.sh clippy --all-targets -- -D warnings
-scripts/cargo.sh build --examples
+scripts/cargo.sh build --examples --bin ruspladder
 check_root="$task_root/runs/check-$(date +%Y%m%dT%H%M%S)"
 mkdir -p "$check_root"
 printf 'Evidence directory: %s\n' "$check_root"
@@ -40,3 +40,5 @@ upstream="$task_root/upstream/spladder"
 "$reference_python" scripts/compare_statistics.py "$probe_root/statistics_probe" --work "$check_root/statistics"
 "$reference_python" scripts/compare_test_input.py "$probe_root/test_input_probe" --work "$check_root/test-input"
 "$reference_python" scripts/compare_test_output.py "$probe_root/test_output_probe" --upstream "$upstream" --work "$check_root/test-output"
+"$reference_python" scripts/compare_test_cli.py "$task_root/target/debug/ruspladder" "$probe_root/import_fixture_probe" --upstream "$upstream" --work "$check_root/test-cli"
+"$reference_python" scripts/compare_test_cli_synthetic.py "$task_root/target/debug/ruspladder" "$probe_root/import_fixture_probe" --upstream "$upstream" --work "$check_root/test-cli-six"

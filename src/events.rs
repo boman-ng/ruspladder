@@ -56,40 +56,6 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn exon_coordinate_strings(&self) -> (String, String) {
-        let unique: BTreeMap<_, _> = self
-            .exons1
-            .iter()
-            .chain(&self.exons2)
-            .map(|&exon| (format!("{}-{}", exon[0], exon[1]), exon))
-            .collect();
-        let coordinates: Vec<_> = unique.into_iter().collect();
-        let order = crate::sort::argsort_i64(
-            &coordinates
-                .iter()
-                .map(|(_, exon)| exon[0])
-                .collect::<Vec<_>>(),
-        );
-        let positions = order
-            .iter()
-            .map(|&i| coordinates[i].0.as_str())
-            .collect::<Vec<_>>()
-            .join(":");
-        let usage = order
-            .iter()
-            .map(|&i| {
-                let exon = &coordinates[i].1;
-                if self.exons1.contains(exon) && self.exons2.contains(exon) {
-                    "0"
-                } else {
-                    "1"
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(":");
-        (positions, usage)
-    }
-
     fn new(
         kind: EventType,
         gene: &Gene,

@@ -32,6 +32,30 @@ fn percentile(values: &mut [f64], fraction: f64) -> f64 {
 }
 
 pub fn size_factors(counts: &[Vec<f64>], samples: usize, kind: Normalization) -> Result<Vec<f64>> {
+    size_factors_impl(counts, samples, kind, numeric::sum)
+}
+
+/// `_get_gene_expression` selects columns by advanced indexing, creating a
+/// Fortran-order array. NumPy reduces these noncontiguous rows sequentially.
+pub(crate) fn size_factors_column_subset(counts: &[Vec<f64>], samples: usize) -> Result<Vec<f64>> {
+    size_factors_impl(
+        counts,
+        samples,
+        Normalization::Geomean,
+        if counts.len() > 1 {
+            numeric::sum_strided
+        } else {
+            numeric::sum
+        },
+    )
+}
+
+fn size_factors_impl(
+    counts: &[Vec<f64>],
+    samples: usize,
+    kind: Normalization,
+    sum: fn(&[f64]) -> f64,
+) -> Result<Vec<f64>> {
     ensure!(
         !matches!(kind, Normalization::Uq),
         "SplAdder v3.1.1 uq normalization fails: scoreatpercentile is not defined"
@@ -44,7 +68,7 @@ pub fn size_factors(counts: &[Vec<f64>], samples: usize, kind: Normalization) ->
         .iter()
         .map(|row| {
             let logs: Vec<_> = row.iter().map(|&x| (x + 1.0).ln()).collect();
-            (numeric::sum(&logs) / samples as f64).exp()
+            (sum(&logs) / samples as f64).exp()
         })
         .collect();
     Ok((0..samples)

@@ -1,5 +1,9 @@
 // NumPy 2.2.6 numpy/_core/src/umath/loops_utils.h.src DOUBLE_pairwise_sum.
 // BSD-3-Clause; see licenses/NumPy-BSD.txt. Preserve its addition order.
+pub fn sum_strided(values: &[f64]) -> f64 {
+    values.iter().fold(0.0, |sum, &x| sum + x)
+}
+
 pub fn sum(values: &[f64]) -> f64 {
     if values.len() < 8 {
         return values.iter().fold(-0.0, |total, &x| total + x);
