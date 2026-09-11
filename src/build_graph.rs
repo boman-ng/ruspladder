@@ -10,6 +10,7 @@ use crate::{
     reference::Reference,
 };
 use anyhow::{Result, ensure};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeSet,
@@ -229,15 +230,22 @@ pub fn generate(
     }
     let mut inserted = GraphInserted::default();
     if options.insert_es {
-        for (gene, lists) in genes.iter_mut().zip(&introns) {
-            let track = evidence.coverage(gene, &options.reads)?;
-            let pairs: Vec<_> = lists[usize::from(gene.strand == '-')]
-                .iter()
-                .map(|v| [v[0], v[1]])
-                .collect();
-            inserted.cassette_exon +=
-                augment::insert_cassettes(gene, &pairs, &track, options.cassette)?;
-        }
+        inserted.cassette_exon = genes
+            .par_iter_mut()
+            .zip(&introns)
+            .map_init(
+                || Evidence::open(bams, reference),
+                |reader, (gene, lists)| {
+                    let reader = reader.as_mut().map_err(|e| anyhow::anyhow!("{e:#}"))?;
+                    let track = reader.coverage(gene, &options.reads)?;
+                    let pairs: Vec<_> = lists[usize::from(gene.strand == '-')]
+                        .iter()
+                        .map(|v| [v[0], v[1]])
+                        .collect();
+                    augment::insert_cassettes(gene, &pairs, &track, options.cassette)
+                },
+            )
+            .try_reduce(|| 0, |a, b| Ok(a + b))?;
     }
     if options.insert_ir {
         if options.retention_read_filter.is_none() {
@@ -245,11 +253,17 @@ pub fn generate(
         }
         let mut reads = options.reads.clone();
         reads.filter = options.retention_read_filter.clone();
-        for gene in &mut genes {
-            let track = evidence.coverage(gene, &reads)?;
-            inserted.intron_retention +=
-                augment::insert_retentions(gene, &track, options.retention)?;
-        }
+        inserted.intron_retention = genes
+            .par_iter_mut()
+            .map_init(
+                || Evidence::open(bams, reference),
+                |reader, gene| {
+                    let reader = reader.as_mut().map_err(|e| anyhow::anyhow!("{e:#}"))?;
+                    let track = reader.coverage(gene, &reads)?;
+                    augment::insert_retentions(gene, &track, options.retention)
+                },
+            )
+            .try_reduce(|| 0, |a, b| Ok(a + b))?;
     }
     if options.remove_se {
         for gene in &mut genes {
