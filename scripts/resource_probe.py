@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect effective cgroup-v1 memory limits and CPU affinity inside a Slurm job."""
+"""Inspect effective cgroup-v1 memory limits and CPU affinity in Slurm/Docker."""
 import json
 import os
 from pathlib import Path
@@ -14,13 +14,24 @@ def snapshot():
             entries[controller] = relative
     if "memory" not in entries:
         raise RuntimeError("This machine's benchmark probe currently requires cgroup v1 memory control")
-    root = Path("/sys/fs/cgroup/memory")
-    current = root / entries["memory"].lstrip("/")
+    # Docker mounts the container's cgroup as the filesystem root; Slurm
+    # exposes the complete hierarchy. Resolve the actual mount root first.
+    for line in Path("/proc/self/mountinfo").read_text().splitlines():
+        fields, filesystem = line.split(" - ", 1)
+        before, after = fields.split(), filesystem.split()
+        if after[0] == "cgroup" and "memory" in after[2].split(","):
+            root = Path(before[4])
+            current = root / Path(entries["memory"]).relative_to(before[3])
+            break
+    else:
+        raise RuntimeError("memory cgroup mount not found")
     limits = []
-    while current != root:
+    while True:
         limits.append({"path": str(current),
                        "limit": int((current / "memory.limit_in_bytes").read_text()),
                        "peak": int((current / "memory.max_usage_in_bytes").read_text())})
+        if current == root:
+            break
         current = current.parent
     return {"cpu_affinity": affinity, "memory_limits": limits,
             "effective_memory_limit": min(x["limit"] for x in limits),
