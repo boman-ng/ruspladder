@@ -366,10 +366,15 @@ impl AlignmentReader {
                         let a = position.max(start);
                         let b = end.min(stop);
                         if coverage && a < b {
-                            for value in
-                                &mut result.coverage[(a - start) as usize..(b - start) as usize]
-                            {
-                                *value += 1;
+                            // mosdepth's start/end differences, using the output
+                            // buffer itself. Preserve SplAdder's deletion and
+                            // overlapping-mate counting rather than mosdepth's
+                            // read filtering rules.
+                            let delta = &mut result.coverage[(a - start) as usize];
+                            *delta = delta.wrapping_add(1);
+                            if b < stop {
+                                let delta = &mut result.coverage[(b - start) as usize];
+                                *delta = delta.wrapping_sub(1);
                             }
                         }
                         position = end;
@@ -378,6 +383,11 @@ impl AlignmentReader {
                 }
             }
             result.read_count += 1;
+        }
+        let mut depth = 0u64;
+        for value in &mut result.coverage {
+            depth = depth.wrapping_add(*value);
+            *value = depth;
         }
         result.introns_plus = plus.into_iter().map(|([a, b], n)| [a, b, n]).collect();
         result.introns_minus = minus.into_iter().map(|([a, b], n)| [a, b, n]).collect();

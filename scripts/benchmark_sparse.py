@@ -45,11 +45,11 @@ def main():
         return
     from resource_probe import snapshot
     before = snapshot()
-    assert len(before["cpu_affinity"]) == 4
-    assert before["effective_memory_limit"] == 8 * 1024**3
+    assert len(before["cpu_affinity"]) == 8
+    assert before["effective_memory_limit"] == 16 * 1024**3
     request = dict(bam=str(args.bam), output=str(args.work / "summary.hdf5"),
                    chromosomes=args.chromosomes.split(","), reference=None,
-                   options={}, parallel=4, window=1048576, unstranded=True)
+                   options={}, parallel=8, window=1048576, unstranded=True)
     if args.mode == "reference":
         command = [sys.executable, __file__, *sys.argv[1:], "--worker"]
     else:
@@ -64,7 +64,7 @@ def main():
     user = usage.ru_utime - usage_before.ru_utime
     system = usage.ru_stime - usage_before.ru_stime
     report = dict(mode=args.mode, wall_seconds=elapsed, user_seconds=user, system_seconds=system,
-                  mean_cores=(user + system) / elapsed, utilization_4cpu_percent=100 * (user + system) / (4 * elapsed),
+                  mean_cores=(user + system) / elapsed, utilization_8cpu_percent=100 * (user + system) / (8 * elapsed),
                   max_process_rss_kib=usage.ru_maxrss, input_blocks=usage.ru_inblock, output_blocks=usage.ru_oublock,
                   returncode=process.returncode, resources_before=before, resources_after=after)
     (args.work / "report.json").write_text(json.dumps(report, indent=2) + "\n")

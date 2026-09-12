@@ -25,7 +25,7 @@ annotation = a.work/'colliding.gtf'
 annotation.write_text(text)
 normalized = Path(str(annotation)+'.locus.gtf')
 common = ['build','--bams',','.join(str(source/f'align/testcase_events_1_sample{i}.bam') for i in [1,2]),
-          '--parallel','4','--reference',str(source/'genome.fa'),'--output-txt']
+          '--parallel','8','--reference',str(source/'genome.fa'),'--output-txt']
 native = [str(a.binary),*common,'-a',str(annotation),'-o',str(a.work/'native'),'--annotation-mode','locus']
 with (a.work/'native.log').open('w') as log:
     subprocess.run(native, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=3600)

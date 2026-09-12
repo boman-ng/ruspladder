@@ -1,12 +1,20 @@
 # Performance evidence
 
-The acceptance workload uses four logical CPUs and a hard 8 GiB cgroup memory
+The current acceptance baseline is **8 CPUs / 16 GiB**, with no additional
+swap, a 1,800-second soft notification and a 3,600-second hard SIGKILL boundary.
+The [HPC investigation](HPC_LIFECYCLE.md) records the current experiment. The
+measurements below retain their original resource limits and provenance.
+
+## Earlier four-CPU benchmark methodology
+
+The earlier acceptance workload used four logical CPUs and a hard 8 GiB cgroup memory
 limit, with swap disabled. The local Docker image is pinned by digest; it runs
 the same reference environment and native libraries used for correctness checks.
 Every measured command records its actual affinity and cgroup limit. Up to 64
-threads are accepted by the CLI; the performance baseline stays at four.
+threads are accepted by the CLI; the performance baseline at that revision was four.
 
-`scripts/run_lifecycle_benchmarks.py` runs three interleaved repetitions of:
+At the recorded source revision, `scripts/run_lifecycle_benchmarks.py` ran
+three interleaved repetitions of:
 
 - Eight real airway BAMs: the complete build, including annotation, all sample
   graphs, merge, quantification, six event types and public outputs.
@@ -117,7 +125,9 @@ Raw evidence: [lifecycle report](../runs/lifecycle-final/report.json). The per-r
 reports include all stage CPU times, limits, I/O, hashes and commands. Earlier
 failed pilots remain under ../runs/lifecycle-pilot-* and are not included here.
 
-Reproduce from the prepared environment (use a new output directory):
+For the historical four-CPU reproduction, check out the recorded source
+revision first. The current runner enforces eight CPUs / 16 GiB. Use a new
+output directory:
 
 ```sh
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \

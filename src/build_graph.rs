@@ -185,9 +185,9 @@ impl Evidence {
             .filter(|g| self.contigs.contains(&g.chr))
             .collect();
         lists
-            .par_iter_mut()
+            .iter_mut()
             .zip(selected)
-            .with_max_len(64)
+            .par_bridge()
             .try_for_each_init(
                 || {
                     bams.iter()
@@ -380,9 +380,9 @@ pub fn generate(
     let mut inserted = GraphInserted::default();
     if options.insert_es {
         inserted.cassette_exon = genes
-            .par_iter_mut()
+            .iter_mut()
             .zip(&introns)
-            .with_max_len(64)
+            .par_bridge()
             .map_init(
                 || Evidence::open(bams, reference, &options.reads),
                 |reader, (gene, lists)| {
@@ -404,8 +404,8 @@ pub fn generate(
         let mut reads = options.reads.clone();
         reads.filter = options.retention_read_filter.clone();
         inserted.intron_retention = genes
-            .par_iter_mut()
-            .with_max_len(64)
+            .iter_mut()
+            .par_bridge()
             .map_init(
                 || Evidence::open(bams, reference, &reads),
                 |reader, gene| {

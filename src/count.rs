@@ -87,17 +87,23 @@ pub fn count_sample(
 ) -> Result<Vec<Counts>> {
     let mut options = options.clone();
     options.filter = None;
+    // Pair each gene with its output slot before dynamic scheduling. Bridge
+    // workers keep indexed readers/caches alive while pulling further genes;
+    // completion order must not reorder the scientific count arrays.
+    let mut counts = vec![None; genes.len()];
     genes
-        .par_iter_mut()
-        .with_max_len(64)
-        .map_init(
+        .iter_mut()
+        .zip(&mut counts)
+        .par_bridge()
+        .try_for_each_init(
             || EvidenceReader::open(bam, reference, &options),
-            |reader, gene| {
+            |reader, (gene, output)| -> Result<()> {
                 let reader = reader
                     .as_mut()
                     .map_err(|error| anyhow::anyhow!("{error:#}"))?;
-                count_gene(gene, reader, &options)
+                *output = Some(count_gene(gene, reader, &options)?);
+                Ok(())
             },
-        )
-        .collect()
+        )?;
+    Ok(counts.into_iter().map(Option::unwrap).collect())
 }

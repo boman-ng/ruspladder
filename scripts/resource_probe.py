@@ -41,5 +41,5 @@ def snapshot():
 if __name__ == "__main__":
     result = snapshot()
     print(json.dumps(result, indent=2))
-    assert len(result["cpu_affinity"]) == 4, "benchmark needs exactly 4 available logical CPUs"
-    assert result["effective_memory_limit"] == 8 * 1024**3, "8 GiB hard memory limit was not enforced"
+    assert len(result["cpu_affinity"]) == 8, "benchmark needs exactly 8 available logical CPUs"
+    assert result["effective_memory_limit"] == 16 * 1024**3, "16 GiB hard memory limit was not enforced"

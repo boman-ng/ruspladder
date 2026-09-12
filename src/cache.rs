@@ -78,8 +78,13 @@ pub fn atomic_write<T>(path: &Path, write: impl FnOnce(&Path) -> Result<T>) -> R
 }
 
 fn write_genes_inner(path: &Path, genes: &[Gene]) -> Result<()> {
-    let file =
-        File::create(path).with_context(|| format!("create graph cache {}", path.display()))?;
+    let file = File::with_options()
+        .with_fapl(|p| {
+            p.core_options(64 * 1024 * 1024, true)
+                .write_tracking(64 * 1024)
+        })
+        .create(path)
+        .with_context(|| format!("create graph cache {}", path.display()))?;
     write_string(&file, "format", "ruspladder-genes")?;
     file.new_dataset::<u64>()
         .shape(())
@@ -187,12 +192,22 @@ fn write_genes_inner(path: &Path, genes: &[Gene]) -> Result<()> {
                 .collect::<Vec<_>>(),
         )?;
     }
+    drop(root);
     file.close()?;
     Ok(())
 }
 
 pub fn read_genes(path: &Path) -> Result<Vec<Gene>> {
-    let file = File::open(path).with_context(|| format!("open graph cache {}", path.display()))?;
+    let file = File::with_options()
+        .with_fapl(|p| p.core_filebacked(false))
+        .open(path)
+        // The core VFD omits the OS reason on failed opens. Preserve the
+        // existing ENOENT/permission diagnostics; valid files use no extra I/O.
+        .map_err(|error| match std::fs::File::open(path) {
+            Err(io_error) => anyhow::Error::from(io_error),
+            Ok(_) => anyhow::Error::from(error),
+        })
+        .with_context(|| format!("open graph cache {}", path.display()))?;
     ensure!(
         read_string(&file, "format")? == "ruspladder-genes",
         "not a ruspladder graph cache"

@@ -2,7 +2,7 @@
 set -euo pipefail
 task_root="${RUSPLADDER_WORK_ROOT:-/home/wubw/data/ruspladder}"
 export CARGO_HOME="$task_root/cache/cargo"
-export CARGO_TARGET_DIR="$task_root/target"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$task_root/target}"
 export TMPDIR="$task_root/tmp"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-16}"
 export RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-4}"

@@ -54,7 +54,7 @@ for name,annotation,bams,ref,extra in scenarios:
  root=a.work/name;root.mkdir(exist_ok=True);local=root/annotation.name;shutil.copyfile(annotation,local)
  reference=root/'reference';reference.mkdir(exist_ok=True)
  run(Path(sys.executable).parent/'spladder',reference,local,bams,ref,extra,1,'reference')
- for threads in [1,4]:
+ for threads in [1,4,8]:
   native=root/f'native-{threads}';native.mkdir(exist_ok=True)
   run(a.binary,native,local,bams,ref,extra,threads,f'native-{threads}')
   compare(reference,native)
@@ -71,4 +71,4 @@ for name,annotation,bams,ref,extra in scenarios:
       np.testing.assert_array_equal(x,y,err_msg=f'thread determinism {path} {key}')
       if x.dtype.kind=='f':assert x.tobytes()==y.tobytes(),f'float bits differ: {path} {key}'
  print('PASS:',name,flush=True)
-report=dict(**comparisons,threads=[1,4],result='pass');(a.work/'report.json').write_text(json.dumps(report,indent=2)+'\n');print('PASS:',report)
+report=dict(**comparisons,threads=[1,4,8],result='pass');(a.work/'report.json').write_text(json.dumps(report,indent=2)+'\n');print('PASS:',report)

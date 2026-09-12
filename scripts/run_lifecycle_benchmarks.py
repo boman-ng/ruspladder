@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run interleaved, isolated 4-CPU/8-GiB lifecycle measurements and parity checks."""
+"""Run interleaved, isolated 8-CPU/16-GiB lifecycle measurements and parity checks."""
 import argparse,json,os,statistics,subprocess,sys
 from pathlib import Path
 import h5py,numpy,scipy,statsmodels
@@ -31,7 +31,7 @@ def main():
     matched=compare(roots['reference']/'results',roots['rust']/'results',a.exporter);matched.update(label=label,repeat=repeat+1,cache=cache);parity.append(matched)
     (a.work/'progress.json').write_text(json.dumps(dict(runs=reports,parity=parity),indent=2)+'\n')
  summaries=[]
- metrics=['wall_seconds','cpu_seconds','mean_cores','utilization_4cpu_percent','max_process_rss_kib','cgroup_peak_bytes','input_blocks','output_blocks']
+ metrics=['wall_seconds','cpu_seconds','mean_cores','utilization_8cpu_percent','max_process_rss_kib','cgroup_peak_bytes','input_blocks','output_blocks']
  for label in sorted({r['label'] for r in reports}):
   for cache in ['fresh','reused']:
    values={mode:{metric:statistics.median(r[metric] for r in reports if r['label']==label and r['cache']==cache and r['mode']==mode) for metric in metrics} for mode in ['reference','rust']}

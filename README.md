@@ -10,7 +10,9 @@ The production pipeline runs without Python. Python is a build/reference tool.
 Public tabular and HDF5 results remain compatible;
 Python pickle caches are outside the compatibility contract.
 
-See [PERFORMANCE.md](PERFORMANCE.md) for the 4-thread / 8 GiB measurements.
+The acceptance baseline is 8 CPUs / 16 GiB, with a 30-minute soft threshold
+and a one-hour hard timeout. See [PERFORMANCE.md](PERFORMANCE.md) for current
+and historical measurements.
 
 On this machine, source worktrees and all dependencies, build caches, input data,
 and run outputs live under `/home/wubw/data/ruspladder/`. Run Cargo through
@@ -36,7 +38,7 @@ bash scripts/cargo.sh build --release --bin ruspladder
 
 ```sh
 OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/release/ruspladder test \
-  -o results -a sampleA1,sampleA2 -b sampleB1,sampleB2 --parallel 4
+  -o results -a sampleA1,sampleA2 -b sampleB1,sampleB2 --parallel 8
 ```
 
 `build` now connects annotation, BAM/CRAM graph generation, merging, graph counts,
@@ -44,7 +46,7 @@ event verification and all nonvisual outputs. For example:
 
 ```sh
 OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/release/ruspladder build \
-  -a annotation.gtf -b sampleA.bam,sampleB.bam -o results --parallel 4
+  -a annotation.gtf -b sampleA.bam,sampleB.bam -o results --parallel 8
 ```
 
 For GTFs that reuse a gene ID across reference sequences or strands, add
@@ -65,9 +67,9 @@ its explicit feature IDs and Parent relationships in the default importer.
 See [the design and source references](ANNOTATION_LOCUS_PROPOSAL.md).
 
 `prep`, direct or sparse-alignment `build`, and differential `test` are available.
-Use `prep -a annotation.gtf -b sample.bam --sparse-bam --parallel 4` to create
+Use `prep -a annotation.gtf -b sample.bam --sparse-bam --parallel 8` to create
 bounded-memory public alignment summaries, then add `--sparse-bam` to `build`.
-All commands accept up to 64 threads; validation uses 1/4 threads.
+All commands accept up to 64 threads; build CLI validation uses 1/4/8 threads.
 The constrained benchmark and output comparisons are reproducible with
 `scripts/run_lifecycle_benchmarks.py`; run `bash scripts/check.sh` for the
 complete source comparison suite in the prepared reference environment.

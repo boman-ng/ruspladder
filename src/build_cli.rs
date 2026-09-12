@@ -214,7 +214,11 @@ impl BuildArgs {
             },
         })
     }
-    fn merge_graphs(&self, samples: &[String]) -> Result<()> {
+    fn merge_graphs(
+        &self,
+        samples: &[String],
+        retained: &mut Option<(PathBuf, Vec<Gene>)>,
+    ) -> Result<()> {
         let mut output = self.graph(&self.merge);
         if output.exists() {
             return Ok(());
@@ -262,8 +266,10 @@ impl BuildArgs {
                 .collect();
         }
         // do_merge_all is false in upstream default_settings, including merge_all.
-        let genes = crate::merge::merge_samples(paths.iter().map(|p| cache::read_genes(p)))?;
-        cache::write_genes(&output, &genes)
+        let genes = crate::merge::merge_samples(paths.iter().map(|p| read_graph(p, retained)))?;
+        cache::write_genes(&output, &genes)?;
+        *retained = Some((output, genes));
+        Ok(())
     }
 
     fn report_events(
@@ -488,6 +494,7 @@ fn run_build(o: &BuildArgs) -> Result<()> {
         "lenient" => Some(true),
         _ => anyhow::bail!("consensus must be strict or lenient"),
     };
+    let mut retained_graph: Option<(PathBuf, Vec<Gene>)> = None;
     if o.merge != "merge_graphs" || !o.graph(&o.merge).exists() {
         if o.sparse_bam {
             crate::prep::prepare_summaries(
@@ -514,6 +521,7 @@ fn run_build(o: &BuildArgs) -> Result<()> {
                     o.ref_genome.as_deref(),
                 )?;
                 cache::write_genes(&output, &genes)?;
+                retained_graph = Some((output, genes));
                 if o.logfile != "-" {
                     fs::write(
                         &o.logfile,
@@ -532,18 +540,20 @@ fn run_build(o: &BuildArgs) -> Result<()> {
             generate("merge_bams", &bams)?;
         }
         if ["merge_graphs", "merge_all"].contains(&o.merge.as_str()) {
-            o.merge_graphs(&samples)?;
+            o.merge_graphs(&samples, &mut retained_graph)?;
         }
     }
     drop(annotation);
     let merged_tag = format!("{}{}", o.merge, o.validated());
     if o.merge == "merge_graphs" && !o.validated().is_empty() && !o.graph(&merged_tag).exists() {
-        let mut genes = cache::read_genes(&o.graph(&o.merge))?;
+        let mut genes = read_graph(&o.graph(&o.merge), &mut retained_graph)?;
         crate::merge::filter_edge_support(
             &mut genes,
             o.sg_min_edge_count.min(samples.len()) as u64,
         )?;
-        cache::write_genes(&o.graph(&merged_tag), &genes)?;
+        let output = o.graph(&merged_tag);
+        cache::write_genes(&output, &genes)?;
+        retained_graph = Some((output, genes));
     }
     let indices: Vec<_> = if o.merge == "single" || o.qmode == "collect" {
         (0..samples.len()).collect()
@@ -563,7 +573,6 @@ fn run_build(o: &BuildArgs) -> Result<()> {
     let nonfinal_chunk = !o.chunked_merge.is_empty() && o.chunked_merge[0] < o.chunked_merge[1];
     // Keep one completed graph between quantification, event collection and
     // reporting instead of decoding thousands of HDF5 groups each time.
-    let mut retained_graph: Option<(PathBuf, Vec<Gene>)> = None;
     if o.quantify_graph && !o.no_quantify_graph && !nonfinal_chunk {
         for &index in &indices {
             let tag = if o.merge == "single" {
@@ -720,8 +729,9 @@ fn run_build(o: &BuildArgs) -> Result<()> {
 }
 
 fn read_graph(path: &Path, retained: &mut Option<(PathBuf, Vec<Gene>)>) -> Result<Vec<Gene>> {
-    match retained.take() {
-        Some((cached, genes)) if cached == path => Ok(genes),
-        _ => cache::read_genes(path),
+    if retained.as_ref().is_some_and(|(cached, _)| cached == path) {
+        Ok(retained.take().unwrap().1)
+    } else {
+        cache::read_genes(path)
     }
 }
