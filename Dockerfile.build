@@ -1,11 +1,12 @@
-FROM rust:1.94.1-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    clang libclang-dev libbz2-dev zlib1g-dev patchelf python3 python3-venv \
-    && rm -rf /var/lib/apt/lists/*
-RUN python3 -m venv /opt/build-tools \
-    && /opt/build-tools/bin/pip install --no-cache-dir cmake==4.4.3 uv==0.8.22
+FROM rust:1.94.1-bookworm AS rust
 RUN rustup component add rustfmt clippy
-ENV PATH="/opt/build-tools/bin:${PATH}" \
+
+# PyPA's AlmaLinux 8 toolchain keeps the binary compatible with glibc 2.28.
+FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:53390351aeb4688114b02c36a23b3e6ce1166ee9b7afc5df1a4f776354fc764c
+COPY --from=rust /usr/local/cargo /usr/local/cargo
+COPY --from=rust /usr/local/rustup /usr/local/rustup
+ENV PATH="/usr/local/cargo/bin:/opt/python/cp312-cp312/bin:/opt/python/cp313-cp313/bin:${PATH}" \
+    RUSTUP_HOME=/usr/local/rustup \
     RUSPLADDER_WORK_ROOT=/work \
     CARGO_HOME=/work/cache/cargo \
     CARGO_TARGET_DIR=/work/target \

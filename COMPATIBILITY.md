@@ -3,7 +3,7 @@
 Ruspladder v0.1.0 targets **SplAdder v3.1.1**, commit
 `65ceec839b9ff0cf96703c1605ee43667662f410`, with the Python dependencies in
 `reference-requirements.lock`. The supported release is Linux amd64 with glibc
-2.36 or newer. Compatibility means the tested scientific contracts below;
+2.28 or newer. Compatibility means the tested scientific contracts below;
 it does **not** mean every input, parameter combination or file byte is identical.
 
 | Area | Preserved behavior | Differences and limits |

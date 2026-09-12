@@ -30,9 +30,17 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/runtime"
           tar -xzf "$RUNNER_TEMP"/ruspladder/dist/*.tar.gz -C "$RUNNER_TEMP/runtime"
-          docker run --rm --network none \
-            -v "$RUNNER_TEMP/runtime:/opt/ruspladder:ro" debian:bookworm-slim \
-            sh -ec 'test -z "$(command -v python3)"; /opt/ruspladder/*/ruspladder --version'
+          mkdir -p "$RUNNER_TEMP/runtime-test"
+          docker run --rm --network none --env OPENBLAS_NUM_THREADS=1 \
+            -v "$RUNNER_TEMP/runtime:/opt/ruspladder:ro" \
+            -v "$RUNNER_TEMP/ruspladder/upstream/spladder/tests/testcase_basic/data:/data:ro" \
+            -v "$RUNNER_TEMP/runtime-test:/test" debian:bookworm-slim \
+            sh -ec 'test -z "$(command -v python3)"
+              /opt/ruspladder/*/ruspladder --version
+              cp /data/annotation_pos.gtf /test/annotation.gtf
+              /opt/ruspladder/*/ruspladder build -a /test/annotation.gtf \
+                -b /data/align/pos_1.bam -o /test/results --parallel 4 --readlen 15
+              test -s /test/results/merge_graphs_exon_skip_C3.counts.hdf5'
       - uses: actions/upload-artifact@v7
         with:
           name: linux-amd64

@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tarfile
@@ -38,13 +39,22 @@ def main():
     subprocess.run(["patchelf", "--set-rpath", "$ORIGIN/lib", str(binary)], check=True)
     for path in lib.glob("*.so*"):
         subprocess.run(["patchelf", "--set-rpath", "$ORIGIN", str(path)], check=True)
+    for path in [binary, *lib.glob("*.so*")]:
+        symbols = subprocess.check_output(["readelf", "--version-info", str(path)], text=True)
+        required = [tuple(map(int, v)) for v in re.findall(r"Name: GLIBC_(\d+)\.(\d+)", symbols)]
+        if required and max(required) > (2, 28):
+            raise RuntimeError(f"{path.name} exceeds the glibc 2.28 release baseline: {max(required)}")
     for name in ["LICENSE", "README.md", "COMPATIBILITY.md", "NUMERICS.md", "CITATION.cff"]:
         shutil.copy2(repo / name, package / name)
     notices = package / "licenses"
     shutil.copytree(repo / "licenses", notices)
     shutil.copy2(repo / "vendor/x86-simd-sort/LICENSE.md", notices / "x86-simd-sort-BSD.txt")
-    for name in ["libbz2-1.0", "zlib1g"]:
-        shutil.copy2(Path("/usr/share/doc") / name / "copyright", notices / f"{name}.txt")
+    sysroot = Path(subprocess.check_output(["rustc", "--print", "sysroot"], text=True).strip())
+    rust_notices = sysroot / "share/doc/rust"
+    shutil.copy2(rust_notices / "COPYRIGHT-library.html", notices / "Rust-standard-library.html")
+    shutil.copytree(rust_notices / "licenses", notices / "rust")
+    for name in ["bzip2-libs", "zlib"]:
+        shutil.copytree(Path("/usr/share/licenses") / name, notices / name)
     metadata = json.loads(subprocess.check_output(
         [str(repo / "scripts/cargo.sh"), "metadata", "--locked", "--format-version", "1"],
         cwd=repo, text=True))

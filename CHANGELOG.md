@@ -7,7 +7,7 @@ and differential testing.
 
 The archive includes the executable, pinned native libraries and license notices.
 Extract the complete directory; run `OPENBLAS_NUM_THREADS=1 ./ruspladder --help`.
-Requires Linux amd64 with glibc 2.36 or newer. Python is not needed at runtime.
+Requires Linux amd64 with glibc 2.28 or newer. Python is not needed at runtime.
 
 Public test scenarios follow SplAdder's `make test`. The resource benchmark is
 4 logical CPUs and a 4 GiB hard memory limit with swap disabled. See

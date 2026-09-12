@@ -32,8 +32,8 @@ export OPENBLAS_NUM_THREADS=1
 ./ruspladder --version
 ```
 
-Requires **Linux amd64 (x86_64), glibc 2.36 or newer**, such as Debian 12 or
-Ubuntu 24.04. Keep the executable and adjacent `lib/` directory together; the
+Requires **Linux amd64 (x86_64), glibc 2.28 or newer**, including RHEL/AlmaLinux 8, Debian 10+ and
+Ubuntu 20.04+. Keep the executable and adjacent `lib/` directory together; the
 whole directory can be moved. Python, Rust, a compiler and a system BLAS/HDF5
 installation are unnecessary at runtime. Alpine/musl and ARM are outside this
 release's supported platform. `OPENBLAS_NUM_THREADS=1` prevents the bundled BLAS
