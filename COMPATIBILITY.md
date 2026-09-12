@@ -1,7 +1,8 @@
 # Observed SplAdder v3.1.1 behavior
 
-This migration targets the pinned source and reference environment specified in
-MIGRATION.md. These are observed contracts and failures, not proposed fixes.
+This migration targets SplAdder v3.1.1, commit
+`65ceec839b9ff0cf96703c1605ee43667662f410`, with dependencies pinned in
+`reference-requirements.lock`. These are observed contracts and failures.
 
 - Text starts use the source's mixed coordinate conventions in each format.
   Event IDs, annotation bits and isoform order retain upstream behavior.
@@ -136,3 +137,16 @@ When a BAM is absent, `--sparse-bam` accepts its complete `.hdf5` summary withou
 requiring the original BAM index. Existing graphs can be recounted; rebuilding
 from annotation also preserves `init_regions` skipping absent BAMs. Both paths
 are compared against source output using isolated copies with BAMs removed.
+
+## Annotation
+
+The default `spladder` mode groups annotation records by gene ID, retaining
+upstream behavior even when an ID spans reference sequences or strands.
+Explicit `locus` mode normalizes GTF IDs by `(gene_id, seqname, strand)` before
+import and writes an identity mapping. Coordinates and non-ID attributes are
+preserved. Same-reference, same-strand records are not split by distance.
+Compare both programs on the same normalized GTF: normalization can change
+graphs and adaptive filters. GFF3 uses feature IDs and Parent relationships.
+
+NCBI biological GeneIDs can occur on multiple features; they are not equivalent
+to unique GFF3 feature IDs. See the [NCBI annotation format documentation](https://www.ncbi.nlm.nih.gov/datasets/docs/v2/reference-docs/file-formats/annotation-files/about-ncbi-gff3/).

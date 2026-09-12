@@ -1,6 +1,6 @@
 //! GTF locus identity follows the GTF 2.2 gene_id contract. Biological IDs
 //! can have several placements (NCBI GFF3); keep those coordinate frames apart.
-//! See ANNOTATION_LOCUS_PROPOSAL.md for sources and compatibility boundaries.
+//! See COMPATIBILITY.md for sources and compatibility boundaries.
 use crate::cache;
 use anyhow::{Context, Result, ensure};
 use clap::ValueEnum;

@@ -1,23 +1,16 @@
 # ruspladder
 
 A Rust migration of SplAdder v3.1.1: `prep`, `build`, and differential `test`,
-including all six event types and nonvisual outputs. The production workflow
-is compared against the pinned upstream source; see the validation boundaries
-and observed upstream failures in [MIGRATION.md](MIGRATION.md) and
-[COMPATIBILITY.md](COMPATIBILITY.md).
+including all six event types and nonvisual outputs.
+See [COMPATIBILITY.md](COMPATIBILITY.md) for supported behavior and
+[NUMERICS.md](NUMERICS.md) for numerical dependencies.
 
 The production pipeline runs without Python. Python is a build/reference tool.
 Public tabular and HDF5 results remain compatible;
 Python pickle caches are outside the compatibility contract.
 
-The acceptance baseline is 8 CPUs / 16 GiB, with a 30-minute soft threshold
-and a one-hour hard timeout. See [PERFORMANCE.md](PERFORMANCE.md) for current
-and historical measurements. The [HPC investigation](HPC_LIFECYCLE.md) and
-[conditional-store follow-up](ZERO_DEPTH_STORES.md) record the adopted changes,
-primary sources, full-sample results and remaining validation limits.
-
-On this machine, source worktrees and all dependencies, build caches, input data,
-and run outputs live under `/home/wubw/data/ruspladder/`. Run Cargo through
+On this machine, dependencies, build caches, input data, and run outputs live
+under `/home/wubw/data/ruspladder/`. Run Cargo through
 `scripts/cargo.sh` to keep its cache and target directory on that disk.
 
 The current numerical parity baseline targets Linux x86_64. Run
@@ -66,13 +59,13 @@ output directories for the two modes. Annotation inputs and their companion
 caches are immutable; when editing a GTF, use a new path or remove its generated
 companions. Locus normalization currently accepts GTF; GFF3 continues to use
 its explicit feature IDs and Parent relationships in the default importer.
-See [the design and source references](ANNOTATION_LOCUS_PROPOSAL.md).
+See [annotation compatibility](COMPATIBILITY.md#annotation).
 
 `prep`, direct or sparse-alignment `build`, and differential `test` are available.
 Use `prep -a annotation.gtf -b sample.bam --sparse-bam --parallel 8` to create
 bounded-memory public alignment summaries, then add `--sparse-bam` to `build`.
-All commands accept up to 64 threads; build CLI validation uses 1/4/8 threads.
-The constrained benchmark and output comparisons are reproducible with
+All commands accept up to 64 threads.
+The 8-CPU / 16-GiB benchmark and output comparisons are reproducible with
 `scripts/run_lifecycle_benchmarks.py`; run `bash scripts/check.sh` for the
 complete source comparison suite in the prepared reference environment.
 
