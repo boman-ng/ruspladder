@@ -47,6 +47,23 @@ OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/release/ruspladder buil
   -a annotation.gtf -b sampleA.bam,sampleB.bam -o results --parallel 4
 ```
 
+For GTFs that reuse a gene ID across reference sequences or strands, add
+`--annotation-mode locus` to `prep` or `build`. This writes
+`annotation.gtf.locus.gtf` and `annotation.gtf.loci.tsv` alongside the input,
+then imports the normalized annotation with the existing algorithms. Coordinates
+and other attributes are retained; affected gene and transcript IDs are made
+unique per placement. The TSV preserves their original identities. Same-strand
+genes on the same reference sequence are not split by a distance threshold.
+
+The default `--annotation-mode spladder` retains the Python compatibility
+behavior. Locus mode changes affected graphs and can change global adaptive
+filters: compare Python and Rust using the same normalized GTF. Use separate
+output directories for the two modes. Annotation inputs and their companion
+caches are immutable; when editing a GTF, use a new path or remove its generated
+companions. Locus normalization currently accepts GTF; GFF3 continues to use
+its explicit feature IDs and Parent relationships in the default importer.
+See [the design and source references](ANNOTATION_LOCUS_PROPOSAL.md).
+
 `prep`, direct or sparse-alignment `build`, and differential `test` are available.
 Use `prep -a annotation.gtf -b sample.bam --sparse-bam --parallel 4` to create
 bounded-memory public alignment summaries, then add `--sparse-bam` to `build`.

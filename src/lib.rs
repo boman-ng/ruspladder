@@ -1,6 +1,7 @@
 //! SplAdder v3.1.1 algorithms, migrated to Rust.
 pub mod analyze;
 pub mod annotation;
+pub mod annotation_loci;
 pub mod augment;
 pub mod build_cli;
 pub mod build_graph;

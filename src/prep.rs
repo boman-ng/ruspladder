@@ -1,6 +1,7 @@
 // Adapted from SplAdder v3.1.1 spladder_prep.py and settings.py (BSD-3-Clause).
 use crate::{
     annotation::{self, AnnotationFilters, Gene},
+    annotation_loci::{self, AnnotationMode},
     cache,
     reads::{ReadFilter, ReadOptions},
     sparse,
@@ -40,6 +41,9 @@ pub struct PrepArgs {
     pub ref_genome: Option<PathBuf>,
     #[arg(long = "annotation", short = 'a', default_value = "-")]
     pub annotation: PathBuf,
+    /// Disambiguate GTF gene/transcript placements before graph construction.
+    #[arg(long, value_enum, default_value_t = AnnotationMode::Spladder)]
+    pub annotation_mode: AnnotationMode,
     #[arg(long = "filter-overlap-genes", action = ArgAction::SetTrue)]
     pub filter_overlap_genes: bool,
     #[arg(long = "filter-overlap-exons", action = ArgAction::SetTrue)]
@@ -77,6 +81,18 @@ pub fn prepare_annotation(path: &Path, filters: AnnotationFilters) -> Result<Vec
         fs::write(report, names.join("\n") + "\n")?;
     }
     Ok(annotation.genes)
+}
+
+pub fn prepare_annotation_mode(
+    path: &Path,
+    filters: AnnotationFilters,
+    mode: AnnotationMode,
+) -> Result<Vec<Gene>> {
+    if mode == AnnotationMode::Locus {
+        prepare_annotation(&annotation_loci::normalize_gtf(path)?, filters)
+    } else {
+        prepare_annotation(path, filters)
+    }
 }
 
 pub(crate) fn alignments(value: &str, sparse: bool) -> Result<(Vec<PathBuf>, Vec<String>)> {
@@ -189,13 +205,14 @@ pub fn run(o: &PrepArgs) -> Result<()> {
         .num_threads(o.parallel as usize)
         .build()?;
     pool.install(|| {
-        let genes = prepare_annotation(
+        let genes = prepare_annotation_mode(
             &o.annotation,
             AnnotationFilters {
                 overlap_genes: o.filter_overlap_genes,
                 overlap_exons: o.filter_overlap_exons,
                 overlap_transcripts: o.filter_overlap_transcripts,
             },
+            o.annotation_mode,
         )?;
         let chromosomes: Vec<_> = genes
             .iter()

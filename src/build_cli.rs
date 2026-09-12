@@ -1,8 +1,9 @@
 // Adapted from SplAdder v3.1.1 spladder_build.py (GPL-3.0-or-later).
-use crate::prep::{alignments, prepare_annotation};
+use crate::prep::{alignments, prepare_annotation_mode};
 use crate::{
     analyze::{self, AnalysisOptions},
     annotation::{AnnotationFilters, Gene},
+    annotation_loci::AnnotationMode,
     build_graph::{self, GraphOptions},
     cache, count,
     count_io::{self, CountWriter},
@@ -29,6 +30,9 @@ pub struct BuildArgs {
     pub outdir: PathBuf,
     #[arg(long = "annotation", short = 'a')]
     pub annotation: PathBuf,
+    /// Disambiguate GTF gene/transcript placements before graph construction.
+    #[arg(long, value_enum, default_value_t = AnnotationMode::Spladder)]
+    pub annotation_mode: AnnotationMode,
     #[arg(long = "parallel", default_value_t = 1, value_parser = clap::value_parser!(u16).range(1..=64))]
     pub parallel: u16,
     #[arg(long = "verbose", short = 'v', action = ArgAction::SetTrue)]
@@ -424,15 +428,33 @@ fn run_build(o: &BuildArgs) -> Result<()> {
                 .with_context(|| format!("unknown event type: {name}"))
         })
         .collect::<Result<_>>()?;
+    let policy_path = o.outdir.join(".annotation-mode");
+    if policy_path.exists() {
+        ensure!(
+            fs::read_to_string(&policy_path)?.trim() == o.annotation_mode.as_str(),
+            "output directory uses a different annotation mode; choose a new --outdir"
+        );
+    } else {
+        let graph_dir = o.outdir.join("spladder");
+        ensure!(
+            o.annotation_mode == AnnotationMode::Spladder
+                || !graph_dir.exists()
+                || fs::read_dir(&graph_dir)?.next().is_none(),
+            "existing graphs have no locus annotation policy; choose a new --outdir"
+        );
+        fs::create_dir_all(&o.outdir)?;
+        fs::write(&policy_path, format!("{}\n", o.annotation_mode.as_str()))?;
+    }
     fs::create_dir_all(o.outdir.join("spladder"))?;
     fs::create_dir_all(o.tmpdir.clone().unwrap_or_else(|| o.outdir.join("tmp")))?;
-    let annotation = prepare_annotation(
+    let annotation = prepare_annotation_mode(
         &o.annotation,
         AnnotationFilters {
             overlap_genes: o.filter_overlap_genes,
             overlap_exons: o.filter_overlap_exons,
             overlap_transcripts: o.filter_overlap_transcripts,
         },
+        o.annotation_mode,
     )?;
     let chromosomes: BTreeMap<_, _> = annotation
         .iter()
@@ -539,6 +561,9 @@ fn run_build(o: &BuildArgs) -> Result<()> {
         )?;
     }
     let nonfinal_chunk = !o.chunked_merge.is_empty() && o.chunked_merge[0] < o.chunked_merge[1];
+    // Keep one completed graph between quantification, event collection and
+    // reporting instead of decoding thousands of HDF5 groups each time.
+    let mut retained_graph: Option<(PathBuf, Vec<Gene>)> = None;
     if o.quantify_graph && !o.no_quantify_graph && !nonfinal_chunk {
         for &index in &indices {
             let tag = if o.merge == "single" {
@@ -564,7 +589,8 @@ fn run_build(o: &BuildArgs) -> Result<()> {
             };
             let counts = o.counts(&count_tag);
             let graph_path = o.graph(&tag);
-            let mut genes = cache::read_genes(&graph_path)?;
+            let mut genes = read_graph(&graph_path, &mut retained_graph)?;
+            let saved_bounds: Vec<_> = genes.iter().map(|g| (g.start, g.stop)).collect();
             if !counts.exists() {
                 if o.merge == "merge_graphs" && o.qmode == "collect" {
                     let paths: Vec<_> = samples
@@ -623,6 +649,13 @@ fn run_build(o: &BuildArgs) -> Result<()> {
                     )
                 })?;
             }
+            // count_sample adjusts bounds to segment extrema. The following
+            // stages historically reopen the pre-count graph from disk.
+            for (gene, (start, stop)) in genes.iter_mut().zip(saved_bounds) {
+                gene.start = start;
+                gene.stop = stop;
+            }
+            retained_graph = Some((graph_path, genes));
         }
     }
     if o.extract_as && !o.no_extract_as {
@@ -643,12 +676,15 @@ fn run_build(o: &BuildArgs) -> Result<()> {
             .any(|&k| !with_suffix(&o.event_base(tag, k), ".events.hdf5").exists())
         {
             let mut collected = if graph_path.exists() {
-                events::collect(
-                    &cache::read_genes(&graph_path)?,
+                let genes = read_graph(&graph_path, &mut retained_graph)?;
+                let collected = events::collect(
+                    &genes,
                     &chromosomes,
                     o.detect_edge_limit,
                     o.curate_alt_prime && !o.no_curate_alt_prime,
-                )
+                );
+                retained_graph = Some((graph_path.clone(), genes));
+                collected
             } else {
                 BTreeMap::new()
             };
@@ -666,7 +702,8 @@ fn run_build(o: &BuildArgs) -> Result<()> {
                 } else {
                     &o.merge
                 };
-                let genes = cache::read_genes(&o.graph(&format!("{tag}{}", o.validated())))?;
+                let graph_path = o.graph(&format!("{tag}{}", o.validated()));
+                let genes = read_graph(&graph_path, &mut retained_graph)?;
                 let sample_idx: Vec<_> = if o.merge == "single" {
                     vec![index]
                 } else {
@@ -675,8 +712,16 @@ fn run_build(o: &BuildArgs) -> Result<()> {
                 for &kind in &kinds {
                     o.report_events(tag, kind, &genes, &samples, &sample_idx)?;
                 }
+                retained_graph = Some((graph_path, genes));
             }
         }
     }
     Ok(())
+}
+
+fn read_graph(path: &Path, retained: &mut Option<(PathBuf, Vec<Gene>)>) -> Result<Vec<Gene>> {
+    match retained.take() {
+        Some((cached, genes)) if cached == path => Ok(genes),
+        _ => cache::read_genes(path),
+    }
 }

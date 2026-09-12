@@ -137,8 +137,17 @@ impl Evidence {
         } else {
             Some(gene.strand)
         };
-        let mut track = vec![0; (gene.stop - gene.start) as usize];
-        for reader in &mut self.readers {
+        let mut readers = self.readers.iter_mut();
+        let mut track = readers
+            .next()
+            .unwrap()
+            .region(&gene.chr, gene.start, gene.stop, &options)?
+            .coverage;
+        ensure!(
+            track.len() == (gene.stop - gene.start) as usize,
+            "graph exons extend beyond sparse coverage"
+        );
+        for reader in readers {
             let evidence = reader.region(&gene.chr, gene.start, gene.stop, &options)?;
             ensure!(
                 evidence.coverage.len() == track.len(),
@@ -162,46 +171,61 @@ impl Evidence {
         genes: &[Gene],
         options: &ReadOptions,
         unstranded: bool,
+        bams: &[PathBuf],
+        reference: Option<&Path>,
     ) -> Result<IntronLists> {
         if options.sparse_confidence.is_some() {
             return self.sparse_introns(genes, options, unstranded);
         }
         let mut lists: IntronLists = vec![Default::default(); genes.len()];
-        let mut options = options.clone();
-        options.mapped = false;
         // Preserve upstream's compacted target index when an annotation
         // contig is absent from the first alignment's region list.
-        for (index, gene) in genes
+        let selected: Vec<_> = genes
             .iter()
             .filter(|g| self.contigs.contains(&g.chr))
-            .enumerate()
-        {
-            options.strand = Some(gene.strand);
-            let start = (gene.start - 5000).max(1);
-            let stop = gene.stop + 5000;
-            let strand = usize::from(gene.strand == '-');
-            let found = &mut lists[index][strand];
-            for reader in &mut self.readers {
-                let evidence = reader.junctions(&gene.chr, start, stop, &options)?;
-                for (si, introns) in [evidence.introns_plus, evidence.introns_minus]
-                    .into_iter()
-                    .enumerate()
-                {
-                    if unstranded || si == strand {
-                        found.extend(introns.into_iter().filter(|v| {
-                            v[0] > start
-                                && v[1] < stop
-                                && options
-                                    .filter
-                                    .as_ref()
-                                    .is_none_or(|f| v[2] >= f.mincount as i64)
-                        }));
+            .collect();
+        lists
+            .par_iter_mut()
+            .zip(selected)
+            .with_max_len(64)
+            .try_for_each_init(
+                || {
+                    bams.iter()
+                        .map(|p| EvidenceReader::open(p, reference, options))
+                        .collect::<Result<Vec<_>>>()
+                },
+                |readers, (list, gene)| -> Result<()> {
+                    let readers = readers.as_mut().map_err(|e| anyhow::anyhow!("{e:#}"))?;
+                    let mut options = options.clone();
+                    options.mapped = false;
+                    options.strand = Some(gene.strand);
+                    let start = (gene.start - 5000).max(1);
+                    let stop = gene.stop + 5000;
+                    let strand = usize::from(gene.strand == '-');
+                    let found = &mut list[strand];
+                    for reader in readers {
+                        let evidence = reader.junctions(&gene.chr, start, stop, &options)?;
+                        for (si, introns) in [evidence.introns_plus, evidence.introns_minus]
+                            .into_iter()
+                            .enumerate()
+                        {
+                            if unstranded || si == strand {
+                                found.extend(introns.into_iter().filter(|v| {
+                                    v[0] > start
+                                        && v[1] < stop
+                                        && options
+                                            .filter
+                                            .as_ref()
+                                            .is_none_or(|f| v[2] >= f.mincount as i64)
+                                }));
+                            }
+                        }
                     }
-                }
-            }
-            // Direct BAM multi-sample mode retains separate support rows.
-            found.sort();
-        }
+                    // Direct BAM multi-sample mode retains separate support rows.
+                    found.sort();
+                    Ok(())
+                },
+            )?;
         Ok(lists)
     }
 
@@ -312,7 +336,13 @@ pub fn generate(
     genes.sort_by(|a, b| a.chr.cmp(&b.chr));
     let mut introns: IntronLists = vec![Default::default(); genes.len()];
     if options.insert_es || options.insert_ir || options.insert_ni {
-        introns = evidence.introns(&genes, &options.reads, options.introns_unstranded)?;
+        introns = evidence.introns(
+            &genes,
+            &options.reads,
+            options.introns_unstranded,
+            bams,
+            reference,
+        )?;
         if let Some(lenient) = options.consensus {
             introns::filter_consensus(
                 &mut introns,
@@ -337,7 +367,13 @@ pub fn generate(
             let selected: Vec<_> = indices.iter().map(|&i| genes[i].clone()).collect();
             let mut reads = options.reads.clone();
             reads.filter = Some(filter.clone());
-            evidence.introns(&selected, &reads, options.introns_unstranded)
+            evidence.introns(
+                &selected,
+                &reads,
+                options.introns_unstranded,
+                bams,
+                reference,
+            )
         })?;
         options.reads.filter = Some(filter);
     }
@@ -346,6 +382,7 @@ pub fn generate(
         inserted.cassette_exon = genes
             .par_iter_mut()
             .zip(&introns)
+            .with_max_len(64)
             .map_init(
                 || Evidence::open(bams, reference, &options.reads),
                 |reader, (gene, lists)| {
@@ -368,6 +405,7 @@ pub fn generate(
         reads.filter = options.retention_read_filter.clone();
         inserted.intron_retention = genes
             .par_iter_mut()
+            .with_max_len(64)
             .map_init(
                 || Evidence::open(bams, reference, &reads),
                 |reader, gene| {

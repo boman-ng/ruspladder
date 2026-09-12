@@ -89,6 +89,7 @@ pub fn count_sample(
     options.filter = None;
     genes
         .par_iter_mut()
+        .with_max_len(64)
         .map_init(
             || EvidenceReader::open(bam, reference, &options),
             |reader, gene| {
