@@ -8,6 +8,7 @@ export TMPDIR="$task_root/tmp"
 cd "$repo_root"
 scripts/cargo.sh fmt -- --check
 scripts/cargo.sh clippy --all-targets -- -D warnings
+scripts/cargo.sh test --lib
 scripts/cargo.sh build --examples --bin ruspladder
 check_root="$task_root/runs/check-$(date +%Y%m%dT%H%M%S)"
 mkdir -p "$check_root"
@@ -48,6 +49,7 @@ upstream="$task_root/upstream/spladder"
 "$reference_python" scripts/compare_test_cli.py "$task_root/target/debug/ruspladder" "$probe_root/import_fixture_probe" --upstream "$upstream" --work "$check_root/test-cli"
 "$reference_python" scripts/compare_test_cli_synthetic.py "$task_root/target/debug/ruspladder" "$probe_root/import_fixture_probe" --upstream "$upstream" --work "$check_root/test-cli-six"
 "$reference_python" scripts/compare_build_cli.py "$task_root/target/debug/ruspladder" "$probe_root/cache_export_probe" --upstream "$upstream" --work "$check_root/build-cli" --airway "$task_root/fixtures/airway"
+"$reference_python" scripts/compare_locus_cli.py "$task_root/target/debug/ruspladder" "$probe_root/cache_export_probe" --upstream "$upstream" --work "$check_root/locus-cli"
 "$reference_python" scripts/compare_build_workflows.py "$task_root/target/debug/ruspladder" "$probe_root/cache_export_probe" --upstream "$upstream" --work "$check_root/build-workflows"
 "$reference_python" scripts/compare_prep_cli.py "$task_root/target/debug/ruspladder" "$probe_root/cache_export_probe" --upstream "$upstream" --work "$check_root/prep-cli"
 "$reference_python" scripts/compare_prep_failures.py "$task_root/target/debug/ruspladder" --upstream "$upstream" --work "$check_root/prep-failures"
