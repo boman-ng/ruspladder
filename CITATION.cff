@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "Please cite the original SplAdder paper for the method and identify Ruspladder and its version as the implementation used."
+title: "Ruspladder: a Rust implementation of SplAdder's non-visual analysis"
+type: software
+authors:
+  - family-names: Ng
+    given-names: Boman
+    alias: boman-ng
+repository-code: "https://github.com/boman-ng/ruspladder"
+version: 0.1.0
+license: BSD-3-Clause
+preferred-citation:
+  type: article
+  title: "SplAdder: identification, quantification and testing of alternative splicing events from RNA-Seq data"
+  authors:
+    - family-names: Kahles
+      given-names: André
+    - family-names: Ong
+      given-names: Cheng Soon
+    - family-names: Zhong
+      given-names: Yi
+    - family-names: Rätsch
+      given-names: Gunnar
+  doi: 10.1093/bioinformatics/btw076
+  journal: Bioinformatics
+  year: 2016
+  volume: 32
+  issue: 12
+  start: 1840
+  end: 1847
