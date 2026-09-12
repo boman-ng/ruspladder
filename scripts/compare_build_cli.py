@@ -62,12 +62,12 @@ for name,annotation,bams,ref,extra in scenarios:
   run(a.binary,native,local,bams,ref,extra,threads,f'native-{threads}-reuse')
   assert before=={p.relative_to(native):p.stat().st_mtime_ns for p in native.rglob('*') if p.is_file()},'reused cache was rewritten'
   compare(reference,native);comparisons['cases']+=1;comparisons['reused']+=1
-  if threads==4:
+  if threads>1:
    for path in (root/'native-1').rglob('*.hdf5'):
     if not path.name.endswith(('.count.hdf5','.counts.hdf5','.gene_exp.hdf5')):continue
-    with h5py.File(path) as one,h5py.File(native/path.relative_to(root/'native-1')) as four:
+    with h5py.File(path) as one,h5py.File(native/path.relative_to(root/'native-1')) as parallel:
      for key in one:
-      x,y=one[key][...],four[key][...]
+      x,y=one[key][...],parallel[key][...]
       np.testing.assert_array_equal(x,y,err_msg=f'thread determinism {path} {key}')
       if x.dtype.kind=='f':assert x.tobytes()==y.tobytes(),f'float bits differ: {path} {key}'
  print('PASS:',name,flush=True)

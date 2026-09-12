@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One isolated sparse-prep measurement inside a 4 CPU / 8 GiB Slurm step."""
+"""One isolated sparse-prep measurement inside an 8 CPU / 16 GiB cgroup."""
 import argparse
 import json
 import os

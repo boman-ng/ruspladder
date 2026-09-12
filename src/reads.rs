@@ -387,7 +387,9 @@ impl AlignmentReader {
         let mut depth = 0u64;
         for value in &mut result.coverage {
             depth = depth.wrapping_add(*value);
-            *value = depth;
+            if *value != depth {
+                *value = depth;
+            }
         }
         result.introns_plus = plus.into_iter().map(|([a, b], n)| [a, b, n]).collect();
         result.introns_minus = minus.into_iter().map(|([a, b], n)| [a, b, n]).collect();
