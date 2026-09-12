@@ -62,11 +62,42 @@ Choose a new output directory. `RUSPLADDER_BENCH_CPUS` can select a different se
 of four available logical CPUs. The matrix includes the public airway subset and
 SplAdder's 20-sample event fixture (direct and sparse build plus differential test).
 GitHub-hosted runner allocation is separate: private-repository runners may have
-only two physical execution CPUs even when four workers are requested. CI is a
+only two available logical CPUs even when four workers are requested. CI is a
 correctness gate; the enforced local benchmark supplies resource measurements.
 
 Earlier 8 CPU / 16 GiB measurements on a private 10-million-read subset are not
 4 CPU / 4 GiB evidence and are not used to promise resource sufficiency here.
+
+### v0.1.0 measurements
+
+Measured on 2026-09-12 with the packaged glibc 2.28 binary and the enforced
+4 CPU / 4 GiB configuration above. All 36 runs completed, and all 18 paired
+scientific-output comparisons passed. Values below are medians of three runs;
+CPU time includes child processes and threads. Memory is the charged cgroup
+peak, including file cache and the benchmark driver.
+
+| Fresh workflow | Python wall (s) | Rust wall (s) | Speedup | Python / Rust CPU time (s) | Python / Rust peak (MiB) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Airway, 8 public subset BAMs, build | 29.796 | 0.822 | 36.25× | 97.003 / 0.789 | 835.56 / 90.09 |
+| SplAdder, 20 synthetic BAMs, build + test | 39.708 | 1.441 | 27.55× | 105.500 / 1.615 | 839.86 / 85.14 |
+| Same event fixture, sparse build + test | 31.289 | 2.336 | 13.40× | 97.230 / 3.133 | 838.53 / 92.28 |
+
+For reused outputs, Python/Rust wall times were 1.317/0.064 s (airway),
+3.234/0.065 s (events, direct), and 2.935/0.050 s (events, sparse).
+These sub-second measurements include the runner's process-wait polling overhead;
+they are observed workflow times, not kernel microbenchmarks.
+Fresh Rust runs averaged 0.95–1.33 CPU cores (24–33% of the four-CPU quota),
+with median maximum process RSS of 83–89 MiB. Native cgroup peak never exceeded
+93.3 MiB across this small-fixture matrix. These inputs emphasize startup,
+annotation and orchestration costs; the figures do not predict whole-transcriptome
+or 10-million-read workloads. Rust also wrote more data on fresh runs
+(3.05/4.82/6.18 MiB versus Python's 1.44/0.98/3.51 MiB for the three rows).
+Reduced elapsed time and CPU work do not imply higher CPU occupancy or less I/O.
+
+The release package also passed all six public make-test scenarios: 56 graph
+cache files, 36 event collections, 558 HDF5 datasets, 152 decompressed text files
+and six differential TSVs. Relocation was exercised by actual builds in a
+Debian 12 container without Python and directly on a glibc 2.28 host.
 
 ## Detailed observed behavior
 
