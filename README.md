@@ -50,7 +50,7 @@ For CRAM, also supply `--reference genome.fa`.
   -o results --parallel 4 --readlen 150 --output-txt
 
 ./ruspladder test -o results \
-  -a control1,control2 -b treated1,treated2 --parallel 4
+  -a control1,control2 -b treated1,treated2 --parallel 4 --readlen 150
 ```
 
 Sample names for `test` correspond to the alignment basenames without extensions.

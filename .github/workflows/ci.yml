@@ -20,7 +20,9 @@ jobs:
       - name: Check, package and compare upstream public data
         run: |
           mkdir -p "$RUNNER_TEMP/ruspladder"
-          docker run --rm --cpus 4 --memory 4g --memory-swap 4g \
+          cpus=$(nproc)
+          if [ "$cpus" -gt 4 ]; then cpus=4; fi
+          docker run --rm --cpus "$cpus" --memory 4g --memory-swap 4g \
             --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:/src" -v "$RUNNER_TEMP/ruspladder:/work" \
             ruspladder-build:0.1.0 bash scripts/ci.sh
