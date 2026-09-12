@@ -65,14 +65,6 @@ impl SpliceGraph {
         }
     }
 
-    pub fn disconnect(&mut self, a: usize, b: usize) {
-        for (from, to) in [(a, b), (b, a)] {
-            if let Ok(at) = self.edges[from].binary_search(&to) {
-                self.edges[from].remove(at);
-            }
-        }
-    }
-
     pub fn predecessors(&self, i: usize) -> impl Iterator<Item = usize> + '_ {
         self.edges[i].iter().copied().take_while(move |&j| j < i)
     }
