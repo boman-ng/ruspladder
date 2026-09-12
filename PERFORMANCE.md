@@ -5,6 +5,107 @@ swap, a 1,800-second soft notification and a 3,600-second hard SIGKILL boundary.
 The [HPC investigation](HPC_LIFECYCLE.md) records the current experiment. The
 measurements below retain their original resource limits and provenance.
 
+## Eight-CPU lifecycle, 2026-09-12
+
+The main HPC change `1a7e920` was compared with the already-tested Rust
+`a8cf33c` on the three full lncRNA BAMs. These are native/native comparisons,
+with identical scientific settings and annotation mode on both sides. All 36
+builds completed before the 30-minute soft boundary without OOM. Each metric
+below is independently reduced to the median of three interleaved paired runs.
+Each run has eight affinity CPUs, an eight-CPU quota, 16 GiB memory, no additional
+swap and a one-hour hard kill. Annotation preparation is included; staging and
+container startup are excluded. OS cache/storage are shared and not flushed.
+
+| Mode / sample | Baseline s | HPC candidate s | Wall reduction | CPU s before / after | Mean cores before / after | RSS MiB before / after |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| locus / S025 | 271.966 | 203.866 | 25.0% | 815.1 / 655.8 | 2.989 / 3.267 | 514.0 / 825.1 |
+| locus / S026 | 255.308 | 186.754 | 26.9% | 739.0 / 570.5 | 2.893 / 3.113 | 510.8 / 815.1 |
+| locus / S027 | 258.735 | 189.654 | 26.7% | 765.0 / 615.6 | 2.949 / 3.226 | 511.5 / 818.6 |
+| spladder / S025 | 531.247 | 433.737 | 18.4% | 2887.2 / 2568.9 | 5.435 / 5.930 | 1326.6 / 4418.4 |
+| spladder / S026 | 487.138 | 400.628 | 17.8% | 2521.2 / 2244.2 | 5.206 / 5.728 | 1291.4 / 4498.1 |
+| spladder / S027 | 517.366 | 405.628 | 21.6% | 2615.4 / 2368.7 | 5.237 / 5.829 | 1365.7 / 4535.7 |
+
+The whole-lifecycle mean-core increase accompanies a 19.5–22.8% reduction in
+child CPU seconds for locus mode and 9.4–11.0% for default compatibility mode.
+Eight-CPU occupancy reaches 38.9–40.8% and 71.6–74.1%, respectively. Serial
+annotation and graph-cache object processing still limit overall parallelism;
+the HDF5 memory driver reduces small I/O operations but does not parallelize
+the library. Default-mode RSS increases substantially and remains within the
+16 GiB budget; this is a measured tradeoff, not an across-the-board memory saving.
+Cgroup charged peaks, including file cache, are retained in the raw reports.
+
+Six first-round full comparisons passed: 48 HDF5 files, 6,854,364 datasets and
+36 scientific text files. Native float bits, object inventories, types, shapes,
+attributes, links, compression and values match. All 24 later repeated outputs
+also pass six non-graph HDF5 files and six texts each against their own first
+repetition; their two private graph caches are not repeated in this later gate.
+The parent's full regression suite passed, including Python fixtures and failure
+paths. Full Python output parity on these three real BAMs remains unverified:
+the previous Python runs timed out at one hour.
+
+Median kernel output-block accounting decreases by 1.9–2.9%. Live ten-second
+I/O samples also show fewer logical reads and small write calls. For S026 locus,
+the last samples contain 4,411,937 versus 28,372 write calls, taken at 260.0 of
+269.4 seconds and 190.0 of 194.0 seconds, respectively. These omit each run's
+remaining tail and are not exact terminal counters. Physical reads are largely
+served by shared OS cache, so no cold-disk read reduction is established.
+
+The adopted [conditional-store investigation](ZERO_DEPTH_STORES.md) follows the
+RSS increase; its immutable binary and additional measurements are kept distinct
+from the completed 36-run experiment above. Its all-sample and repeated paired
+gates passed, as recorded below.
+
+Evidence: [acceptance report](../runs/hpc-lifecycle-20260912/acceptance/README.md),
+[resource/input audit](../runs/hpc-lifecycle-20260912/acceptance/audit.json),
+[three-repeat summary](../runs/hpc-lifecycle-20260912/acceptance/parent-summary.json),
+[sampled I/O](../runs/hpc-lifecycle-20260912/acceptance/sampled-io.json).
+
+## Adopted final candidate and worker scaling
+
+The final scientific code is `53f8c71`, binary SHA256
+`0b88334e1c8d4872dd0112ff1e93894c2114666e13f88d225fcf4fe2a007944d`.
+It adds a store only when the prefix-sum destination needs to change, preserving
+the parent's exact result. In three simultaneous S026/default parent-versus-final
+pairs, median wall time decreases 3.8%, CPU time 4.2%, and peak RSS 30.2%
+(4,310.8 to 3,008.9 MiB); mean occupied cores remain about 5.75. CPU-set placement
+alternates across rounds. This local component measurement is separate from the
+36-run parent comparison and is not multiplied into an inferred global speedup.
+
+Final binary, one fresh complete build per sample/mode, including preparation:
+
+| Mode / sample | Wall s | CPU s | Mean cores | Peak RSS MiB | Cgroup peak MiB |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| locus / S025 | 188.640 | 627.1 | 3.325 | 812.5 | 2003.2 |
+| locus / S026 | 173.602 | 548.6 | 3.161 | 807.9 | 2007.4 |
+| locus / S027 | 183.417 | 588.8 | 3.211 | 815.2 | 2014.0 |
+| spladder / S025 | 429.722 | 2533.9 | 5.897 | 3711.1 | 3945.8 |
+| spladder / S026 | 381.469 | 2169.6 | 5.688 | 3969.4 | 4204.0 |
+| spladder / S027 | 400.005 | 2309.6 | 5.775 | 3966.7 | 4201.5 |
+
+All six final output comparisons pass against the parent, including both private
+graph caches, all HDF5 data/structure and scientific texts with exact native float
+bits. The two stages together comprise twelve full directory comparisons. All
+54 measured acceptance builds completed before the soft limit without OOM;
+resource/annotation audits and 36 later non-graph repeat comparisons also pass.
+Full Python parity on the three real BAMs is still unverified after the earlier
+timeouts. Fixture Python comparisons and the final 39-case CLI/reuse/one-four-eight
+worker raw-bit gate pass. No additional dependency or schema/version change is made.
+
+S026 worker scaling, one observation at each count, same eight-CPU/16-GiB quota
+and fixed affinity 56–63; all associated non-graph outputs match exactly:
+
+| Annotation mode | Four-worker s | Eight-worker s | Speedup | Mean cores four / eight | RSS MiB four / eight |
+| --- | ---: | ---: | ---: | --- | --- |
+| locus | 237.457 | 185.511 | 1.28× | 2.376 / 3.111 | 681.2 / 815.4 |
+| spladder | 637.453 | 385.454 | 1.65× | 3.441 / 5.692 | 2387.5 / 4531.8 |
+
+The serial portions of the shorter locus lifecycle limit its scaling gain.
+Four-worker runs reserve the same eight-CPU envelope for this comparison; their
+mean-core figures are not percentages of a four-CPU quota. The observations
+share OS cache/storage and do not establish 64-core scaling or cold-disk behavior.
+All raw repeats, exclusions, commands and source hashes remain in the
+[acceptance record](../runs/hpc-lifecycle-20260912/acceptance/README.md).
+
 ## Earlier four-CPU benchmark methodology
 
 The earlier acceptance workload used four logical CPUs and a hard 8 GiB cgroup memory

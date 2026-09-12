@@ -21,7 +21,8 @@ unchanged. Existing artifacts and the frozen baseline are preserved.
   [Tabix documentation](https://www.htslib.org/doc/tabix.html): the existing
   BGZF cache avoids rereading/reinflating compressed blocks across overlapping
   queries. The locked HTSlib source has BGZF_CACHE enabled. Its public
-  `hts_set_cache_size` API is reused; it leaves CRAM unchanged. No codec,
+  `hts_set_cache_size` API was tested in the pilot; the final candidate does not
+  enable this additional cache. CRAM is unchanged. No codec,
   alignment cache format or new dependency is introduced.
 - Pedersen and Quinlan, *mosdepth* (Bioinformatics 2018, DOI
   10.1093/bioinformatics/btx699,
@@ -78,8 +79,8 @@ adoption requires full lifecycle measurements under disjoint resource sets.
 
 Raw pilots, failed launcher attempts, immutable binaries, source diffs, hashes,
 commands, profiles and resource samples are under
-`../runs/hpc-lifecycle-20260912/`. Performance and full output acceptance remain
-pending. No publication or version change is part of this investigation.
+`../runs/hpc-lifecycle-20260912/`. The corrected parent candidate passed the
+acceptance gate recorded below. No publication or version change is involved.
 
 A further I/O check found that an untracked core driver increased kernel
 accounted write blocks despite identical final file sizes. The pinned
@@ -115,3 +116,33 @@ command with the restored runner exited at 2.0018 seconds with both soft/hard
 flags and the expected SIGKILL return. No privilege escalation or instrumentation
 was added to the Rust executable. I/O evidence is getrusage block accounting
 and live ten-second samples, not unavailable exact terminal /proc counters.
+
+## Completed parent acceptance
+
+The immutable `candidate-final` matches scientific source `1a7e920` and SHA256
+`ce2c4b547e540a51497007a4fac6d2c6f556431aad474bc21115a10acdffed08`.
+All 36 actual containers passed the CPU/memory/input/output audit and completed
+before the soft boundary. Three-run median wall times fall 25.0–26.9% in locus
+mode and 17.8–21.6% in compatibility mode. CPU seconds decrease while mean
+occupied cores increase in both modes. Peak RSS rises from about 0.5 to 0.8 GiB
+in locus mode and about 1.3 to 4.3–4.4 GiB in compatibility mode.
+
+Six unchanged full native comparisons passed, covering 48 HDF5 files,
+6,854,364 datasets and 36 texts with exact native float bits. Every later
+repetition also passed the established comparator on the six non-graph HDF5
+files and six texts. The entire regression suite completed successfully at
+`../runs/check-20260912T134231`, with its log and source hashes preserved in
+`acceptance/validation/`. The existing CLI suite was subsequently corrected to
+apply its raw-bit one-worker comparison to eight as well as four workers; the
+frozen conditional-store candidate passed all 39 corrected CLI cases.
+
+[PERFORMANCE.md](PERFORMANCE.md) reports the complete parent table, resource
+tradeoffs and I/O interpretation. The [raw acceptance record](../runs/hpc-lifecycle-20260912/acceptance/README.md)
+links immutable inputs, commands, limits, source hashes and exclusions. The
+[zero-store branch](ZERO_DEPTH_STORES.md) investigates the measured RSS increase
+without changing the parent's completed experiment. Its all-sample and repeated
+simultaneous-pair gates passed; the final scientific source is `53f8c71`. The
+conditional store reduced S026/default median wall time by 3.8%, CPU time by
+4.2% and RSS by 30.2% in three simultaneous pairs, with exact output checks.
+The twelve full native comparisons and all 54 measured builds passed their
+respective output and resource gates. See the final tables in PERFORMANCE.md.

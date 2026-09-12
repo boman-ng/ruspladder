@@ -12,7 +12,9 @@ Python pickle caches are outside the compatibility contract.
 
 The acceptance baseline is 8 CPUs / 16 GiB, with a 30-minute soft threshold
 and a one-hour hard timeout. See [PERFORMANCE.md](PERFORMANCE.md) for current
-and historical measurements.
+and historical measurements. The [HPC investigation](HPC_LIFECYCLE.md) and
+[conditional-store follow-up](ZERO_DEPTH_STORES.md) record the adopted changes,
+primary sources, full-sample results and remaining validation limits.
 
 On this machine, source worktrees and all dependencies, build caches, input data,
 and run outputs live under `/home/wubw/data/ruspladder/`. Run Cargo through
