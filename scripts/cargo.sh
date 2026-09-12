@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-task_root="${RUSPLADDER_WORK_ROOT:-/home/wubw/data/ruspladder}"
-export CARGO_HOME="$task_root/cache/cargo"
+task_root="${RUSPLADDER_WORK_ROOT:-$HOME/data/ruspladder}"
+export CARGO_HOME="${CARGO_HOME:-$task_root/cache/cargo}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$task_root/target}"
 export TMPDIR="$task_root/tmp"
-export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-16}"
-export RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-8}"
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}"
+export RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-4}"
 export RUSPLADDER_BLAS_DIR="${RUSPLADDER_BLAS_DIR:-$task_root/native/openblas/lib}"
+mkdir -p "$TMPDIR" "$CARGO_HOME" "$CARGO_TARGET_DIR"
 if [[ -d "$task_root/envs/build/bin" ]]; then
     export PATH="$task_root/envs/build/bin:$PATH"
     if [[ -z "${LIBCLANG_PATH:-}" ]]; then

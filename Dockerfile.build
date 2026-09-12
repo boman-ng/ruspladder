@@ -1,0 +1,19 @@
+FROM rust:1.94.1-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang libclang-dev libbz2-dev zlib1g-dev patchelf python3 python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+RUN python3 -m venv /opt/build-tools \
+    && /opt/build-tools/bin/pip install --no-cache-dir cmake==4.4.3 uv==0.8.22
+RUN rustup component add rustfmt clippy
+ENV PATH="/opt/build-tools/bin:${PATH}" \
+    RUSPLADDER_WORK_ROOT=/work \
+    CARGO_HOME=/work/cache/cargo \
+    CARGO_TARGET_DIR=/work/target \
+    CARGO_BUILD_JOBS=4 \
+    OPENBLAS_NUM_THREADS=1 \
+    OMP_NUM_THREADS=1 \
+    RAYON_NUM_THREADS=4 \
+    NUMBA_NUM_THREADS=4 \
+    UV_CACHE_DIR=/work/cache/uv \
+    UV_PYTHON_INSTALL_DIR=/work/python
+WORKDIR /src

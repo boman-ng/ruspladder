@@ -1,4 +1,74 @@
-# Observed SplAdder v3.1.1 behavior
+# Compatibility, consistency and differences
+
+Ruspladder v0.1.0 targets **SplAdder v3.1.1**, commit
+`65ceec839b9ff0cf96703c1605ee43667662f410`, with the Python dependencies in
+`reference-requirements.lock`. The supported release is Linux amd64 with glibc
+2.36 or newer. Compatibility means the tested scientific contracts below;
+it does **not** mean every input, parameter combination or file byte is identical.
+
+| Area | Preserved behavior | Differences and limits |
+| --- | --- | --- |
+| Input | GTF/GFF3, indexed BAM/CRAM, reference FASTA, public sparse summaries | No Python pickle-cache import; use fresh output directories when switching programs. |
+| Commands | `prep`, `build`, differential `test`; six event types; tested merge, count and output options | No `viz` or diagnostic plots; native help/errors/progress differ. `--annotation-mode` is a Rust extension. Consult each command's help rather than assuming every Python option/abbreviation exists. |
+| Core algorithms | Annotation graphs, evidence augmentation, event detection, verification, counts, PSI and statistical testing | Parallel scheduling, storage and native kernels differ; numerical implementation details are in [NUMERICS.md](NUMERICS.md). |
+| Annotation | Default grouping and adaptive-filter behavior follow upstream | Explicit `locus` normalization changes affected gene/transcript identities and graphs. Both programs must receive the same normalized GTF for a meaningful parity comparison. |
+| Public results | Tested HDF5 names, shapes, dtypes, links, event identities, text fields, coordinates and statistical decisions | Floating-point comparisons use stated tolerances; HDF5 layout and gzip headers are not byte-identity contracts. Some upstream output limitations are retained. |
+| Private caches | Native graph/event caches support reuse, recount and downstream testing | HDF5 replaces pickle; filenames, sizes and bytes differ. Rust caches can occupy more disk. |
+| Intentional repair | CRAM preparation forwards the reference FASTA to HTSlib | Upstream CRAM prep CLI has missing-attribute wiring; parity there is against the working upstream API. |
+| Resources | `--parallel 1..64`; 4 CPU / 4 GiB benchmark, swap disabled | Workload-dependent memory, I/O and scaling. No guarantee of full CPU occupancy, 64-core scaling or universal 4 GiB sufficiency. |
+
+## How consistency is checked
+
+`make test` uses the public fixtures and six scenarios from upstream's `make test`
+(`pytest`): positive/negative strand merged and single builds, and 20-sample BAM
+and CRAM builds followed by exon-skipping differential tests. Ruspladder replays
+these without visualization, uses four workers, and compares against fresh,
+unmodified Python CLI runs. The CRAM differential case retains reversed sample
+order. The single-sample sparse rerun checks cache reuse; it is not a fresh
+sparse-preparation test. The broader `scripts/check.sh` suite separately covers
+sparse prep/build, other options, failure cases and all six statistical event types.
+
+Comparators check full graph/event contents, public HDF5 datasets, decompressed
+text and differential TSVs. Integer/string values, shapes and dtypes match
+exactly. HDF5 floats use `atol=1e-10, rtol=1e-8`, with matching NaNs.
+Differential TSV numeric values use `atol=1e-8, rtol=1e-6`, also require equal
+six-decimal rounding (as upstream tests do), and preserve rejection decisions at
+0.01, 0.05 and 0.1. Passing the fixtures establishes these tested cases, not
+universal equivalence or validation on an independent biological cohort.
+
+## Resource baseline
+
+The benchmark runner enforces CPU affinity to four logical CPUs, a four-CPU
+quota and **4,294,967,296 bytes (4 GiB)** of memory, with swap disabled. It measures
+wall time, child CPU time, average cores, utilization relative to four cores,
+maximum process RSS, cgroup peak memory (including charged file cache), and I/O.
+Three repetitions interleave Python/Rust runs using fresh and reused application
+outputs; filesystem cache is not flushed. Input staging is outside timed stages,
+while startup and annotation parsing are inside. Staging and the benchmark driver
+can contribute to cgroup memory peak. This is distinct from a cold-disk benchmark.
+
+After building the image, preparing the local reference environment and fetching
+the small airway fixture, run:
+
+```sh
+export RUSPLADDER_WORK_ROOT="$HOME/data/ruspladder"
+"$RUSPLADDER_WORK_ROOT/envs/reference/bin/python" scripts/run_lifecycle_benchmarks.py \
+  --work "$RUSPLADDER_WORK_ROOT/runs/baseline-4cpu-4g" \
+  --binary "$RUSPLADDER_WORK_ROOT/target/release/ruspladder" \
+  --exporter "$RUSPLADDER_WORK_ROOT/target/release/examples/cache_export_probe"
+```
+
+Choose a new output directory. `RUSPLADDER_BENCH_CPUS` can select a different set
+of four available logical CPUs. The matrix includes the public airway subset and
+SplAdder's 20-sample event fixture (direct and sparse build plus differential test).
+GitHub-hosted runner allocation is separate: private-repository runners may have
+only two physical execution CPUs even when four workers are requested. CI is a
+correctness gate; the enforced local benchmark supplies resource measurements.
+
+Earlier 8 CPU / 16 GiB measurements on a private 10-million-read subset are not
+4 CPU / 4 GiB evidence and are not used to promise resource sufficiency here.
+
+## Detailed observed behavior
 
 This migration targets SplAdder v3.1.1, commit
 `65ceec839b9ff0cf96703c1605ee43667662f410`, with dependencies pinned in

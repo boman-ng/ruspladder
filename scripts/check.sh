@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-task_root="${RUSPLADDER_WORK_ROOT:-/home/wubw/data/ruspladder}"
+task_root="${RUSPLADDER_WORK_ROOT:-$HOME/data/ruspladder}"
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
-export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 NUMBA_NUM_THREADS=8 RAYON_NUM_THREADS=8
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 NUMBA_NUM_THREADS=4 RAYON_NUM_THREADS=4
 export NUMBA_CACHE_DIR="$task_root/cache/numba"
 export TMPDIR="$task_root/tmp"
 cd "$repo_root"

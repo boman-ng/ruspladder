@@ -1,72 +1,142 @@
-# ruspladder
+# Ruspladder
 
-A Rust migration of SplAdder v3.1.1: `prep`, `build`, and differential `test`,
-including all six event types and nonvisual outputs.
-See [COMPATIBILITY.md](COMPATIBILITY.md) for supported behavior and
-[NUMERICS.md](NUMERICS.md) for numerical dependencies.
+Ruspladder is an independent Rust implementation of the non-visual analysis in
+[SplAdder](https://github.com/ratschlab/spladder) v3.1.1. It takes gene annotation
+and RNA-seq alignments, builds and augments splice graphs, detects alternative
+splicing events, quantifies their support and PSI, and tests differences between
+conditions. It implements `prep`, `build` and differential `test`, including exon
+skipping, intron retention, alternative 3′/5′ splice sites, multiple-exon skipping
+and mutually exclusive exons.
 
-The production pipeline runs without Python. Python is a build/reference tool.
-Public tabular and HDF5 results remain compatible;
-Python pickle caches are outside the compatibility contract.
+The scientific methods originate in SplAdder. Ruspladder is maintained by
+[boman-ng](https://github.com/boman-ng); it is not an official release of SplAdder,
+ratschlab or OpenGene. Its focus is preserving tested scientific behavior while
+reducing runtime and memory use through Rust, bounded data processing and
+multithreading. See [compatibility and differences](COMPATIBILITY.md) before
+substituting it in an existing workflow.
 
-On this machine, dependencies, build caches, input data, and run outputs live
-under `/home/wubw/data/ruspladder/`. Run Cargo through
-`scripts/cargo.sh` to keep its cache and target directory on that disk.
+## Install the Linux binary
 
-The current numerical parity baseline targets Linux x86_64. Run
-`python3 scripts/bootstrap-native.py` to install the pinned OpenBLAS 0.3.29
-ILP64 libraries under the work directory (or use `scripts/bootstrap.sh` for
-the complete reference/build setup). The bootstrap verifies the archive and
-each native library; it does not install NumPy as a production dependency.
-The binary links these native libraries and needs no Python interpreter.
-Keep `OPENBLAS_NUM_THREADS=1` when launching it: event rows use Rayon, and
-this also prevents OpenBLAS's loader from creating an idle 64-thread pool.
-The library additionally fixes BLAS computation to one thread.
-
-Build the release binary:
+Download `ruspladder-v0.1.0-linux-amd64.tar.gz` and its `.sha256` file from
+[Releases](https://github.com/boman-ng/ruspladder/releases/tag/v0.1.0).
+The repository is currently private; downloads require authorized GitHub access.
+For example, with the GitHub CLI already authenticated:
 
 ```sh
-bash scripts/cargo.sh build --release --bin ruspladder
+gh release download v0.1.0 --repo boman-ng/ruspladder \
+  --pattern 'ruspladder-v0.1.0-linux-amd64.tar.gz*'
+sha256sum -c ruspladder-v0.1.0-linux-amd64.tar.gz.sha256
+tar -xzf ruspladder-v0.1.0-linux-amd64.tar.gz
+cd ruspladder-v0.1.0-linux-amd64
+export OPENBLAS_NUM_THREADS=1
+./ruspladder --version
 ```
 
-`test` runs from native graph/event caches and public counted HDF5 files:
+Requires **Linux amd64 (x86_64), glibc 2.36 or newer**, such as Debian 12 or
+Ubuntu 24.04. Keep the executable and adjacent `lib/` directory together; the
+whole directory can be moved. Python, Rust, a compiler and a system BLAS/HDF5
+installation are unnecessary at runtime. Alpine/musl and ARM are outside this
+release's supported platform. `OPENBLAS_NUM_THREADS=1` prevents the bundled BLAS
+loader from creating an idle thread pool; `--parallel` controls analysis workers.
+
+## Quick start
+
+Use coordinate-sorted, indexed BAM files and a matching GTF/GFF3 annotation.
+For CRAM, also supply `--reference genome.fa`.
 
 ```sh
-OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/release/ruspladder test \
-  -o results -a sampleA1,sampleA2 -b sampleB1,sampleB2 --parallel 8
+./ruspladder build -a annotation.gtf \
+  -b control1.bam,control2.bam,treated1.bam,treated2.bam \
+  -o results --parallel 4 --readlen 150 --output-txt
+
+./ruspladder test -o results \
+  -a control1,control2 -b treated1,treated2 --parallel 4
 ```
 
-`build` now connects annotation, BAM/CRAM graph generation, merging, graph counts,
-event verification and all nonvisual outputs. For example:
+Sample names for `test` correspond to the alignment basenames without extensions.
+Set `--readlen` to your data's read length. Public results include graph and gene
+expression counts, event counts/PSI in HDF5, optional event text files, and
+non-visual differential-testing TSV files. Use `./ruspladder COMMAND --help` for
+parameters. Internal Rust caches cannot be exchanged with Python pickle caches.
+
+For reusable sparse alignment summaries:
 
 ```sh
-OPENBLAS_NUM_THREADS=1 /home/wubw/data/ruspladder/target/release/ruspladder build \
-  -a annotation.gtf -b sampleA.bam,sampleB.bam -o results --parallel 8
+./ruspladder prep -a annotation.gtf -b sample.bam --sparse-bam --parallel 4
+./ruspladder build -a annotation.gtf -b sample.bam -o results-sparse \
+  --sparse-bam --parallel 4
 ```
 
-For GTFs that reuse a gene ID across reference sequences or strands, add
-`--annotation-mode locus` to `prep` or `build`. This writes
-`annotation.gtf.locus.gtf` and `annotation.gtf.loci.tsv` alongside the input,
-then imports the normalized annotation with the existing algorithms. Coordinates
-and other attributes are retained; affected gene and transcript IDs are made
-unique per placement. The TSV preserves their original identities. Same-strand
-genes on the same reference sequence are not split by a distance threshold.
+For GTFs reusing a gene ID across reference sequences or strands, explicit
+`--annotation-mode locus` writes normalized `.locus.gtf` and `.loci.tsv`
+companions beside the annotation. It preserves coordinates and records original
+identities. This changes affected gene models: compare Python and Rust on the
+**same normalized GTF**. Default `--annotation-mode spladder` retains upstream
+import behavior. Use separate result directories for the two modes. Annotation
+files and their caches are treated as immutable; after an edit, use a new path or
+remove the generated companions. See [annotation details](COMPATIBILITY.md#annotation).
 
-The default `--annotation-mode spladder` retains the Python compatibility
-behavior. Locus mode changes affected graphs and can change global adaptive
-filters: compare Python and Rust using the same normalized GTF. Use separate
-output directories for the two modes. Annotation inputs and their companion
-caches are immutable; when editing a GTF, use a new path or remove its generated
-companions. Locus normalization currently accepts GTF; GFF3 continues to use
-its explicit feature IDs and Parent relationships in the default importer.
-See [annotation compatibility](COMPATIBILITY.md#annotation).
+## Resources and verification
 
-`prep`, direct or sparse-alignment `build`, and differential `test` are available.
-Use `prep -a annotation.gtf -b sample.bam --sparse-bam --parallel 8` to create
-bounded-memory public alignment summaries, then add `--sparse-bam` to `build`.
-All commands accept up to 64 threads.
-The 8-CPU / 16-GiB benchmark and output comparisons are reproducible with
-`scripts/run_lifecycle_benchmarks.py`; run `bash scripts/check.sh` for the
-complete source comparison suite in the prepared reference environment.
+The resource baseline is **4 logical CPUs / 4 GiB RAM**, with a hard memory limit
+and swap disabled. Commands accept 1–64 threads. Memory requirements depend on
+annotation spans, sample count and event density; 4 GiB is a measured benchmark
+configuration, not a cap enforced by the executable or a promise for every input.
 
-Upstream source: https://github.com/ratschlab/spladder/tree/v3.1.1
+`make test` replays the six non-visual scenarios in SplAdder's public
+[`tests/test_end_to_end.py`](https://github.com/ratschlab/spladder/blob/v3.1.1/tests/test_end_to_end.py):
+positive/negative strand, merged/single analysis, and 20-sample BAM/CRAM build
+plus differential testing. Both programs run from fresh annotations; graphs,
+events, HDF5 values and text/TSV results are compared. CI tests the release package
+and its relocation. [COMPATIBILITY.md](COMPATIBILITY.md) defines comparison
+precision and the limits of this evidence.
+
+## Build and test from source
+
+Build/reference caches and data default to `~/data/ruspladder`; override with
+`RUSPLADDER_WORK_ROOT`. The supported build uses the pinned Linux toolchain:
+
+```sh
+export RUSPLADDER_WORK_ROOT="$HOME/data/ruspladder"
+mkdir -p "$RUSPLADDER_WORK_ROOT"
+docker build -f Dockerfile.build -t ruspladder-build:0.1.0 .
+docker run --rm --cpus 4 --memory 4g --memory-swap 4g \
+  --user "$(id -u):$(id -g)" \
+  -v "$PWD:/src" -v "$RUSPLADDER_WORK_ROOT:/work" \
+  ruspladder-build:0.1.0 bash scripts/ci.sh
+```
+
+This builds, checks, packages and compares public data; the archive is written to
+`$RUSPLADDER_WORK_ROOT/dist/`. Use a fresh work directory when rerunning this
+complete packaging/CI command. Python is used only for dependency extraction,
+packaging and reference comparisons. [NUMERICS.md](NUMERICS.md) describes why the
+native numerical dependencies are pinned.
+
+With Rust ≥1.89, C/C++17, Clang/libclang, CMake ≥3.26, zlib/bzip2 development
+headers and Python 3 installed, `make build` builds locally. To run comparisons,
+install `uv`, run `bash scripts/bootstrap.sh`, then `make test`. The broader
+migration comparison suite remains available through `bash scripts/check.sh`
+after `python3 scripts/fetch_fixtures.py --work-root "$RUSPLADDER_WORK_ROOT"`.
+
+## Attribution, citation and license
+
+Thank you to André Kahles, Cheng Soon Ong, Yi Zhong and Gunnar Rätsch for the
+SplAdder methods and publication, and to the SplAdder authors and contributors
+for making their implementation and test data available. Ruspladder derives its
+algorithms from SplAdder v3.1.1, commit
+`65ceec839b9ff0cf96703c1605ee43667662f410`. It also reuses work from NumPy,
+SciPy, statsmodels, OpenBLAS/LAPACK, HTSlib, HDF5 and x86-simd-sort; source notices
+and provenance are retained in `licenses/` and `vendor/`.
+
+When using Ruspladder in research, cite the original method and record the
+Ruspladder version:
+
+Kahles A, Ong CS, Zhong Y, Rätsch G. **SplAdder: identification, quantification and
+testing of alternative splicing events from RNA-Seq data.** *Bioinformatics*
+32(12), 1840–1847 (2016). [doi:10.1093/bioinformatics/btw076](https://doi.org/10.1093/bioinformatics/btw076).
+Machine-readable citation metadata is in [CITATION.cff](CITATION.cff).
+
+Ruspladder inherits SplAdder's **BSD 3-Clause** license, retaining the original
+copyright and adding attribution for the Rust implementation. See [LICENSE](LICENSE).
+Third-party components retain their own licenses; binary archives include their
+notices. Upstream attribution does not imply endorsement.

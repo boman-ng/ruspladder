@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run interleaved, isolated 8-CPU/16-GiB lifecycle measurements and parity checks."""
+"""Run interleaved, isolated 4-CPU/4-GiB lifecycle measurements and parity checks."""
 import argparse,json,os,statistics,subprocess,sys
 from pathlib import Path
 import h5py,numpy,scipy,statsmodels
@@ -11,7 +11,7 @@ def main():
  assert not a.work.exists(),'use a fresh benchmark directory'
  a.work.mkdir(parents=True)
  repo=Path(__file__).resolve().parent.parent;reports=[];parity=[]
- task_root=Path(os.environ.get('RUSPLADDER_WORK_ROOT','/home/wubw/data/ruspladder'))
+ task_root=Path(os.environ.get('RUSPLADDER_WORK_ROOT',str(Path.home() / 'data/ruspladder')))
  revision=lambda path:subprocess.check_output(['git','-C',str(path),'rev-parse','HEAD'],text=True).strip()
  metadata=dict(reference_commit=revision(task_root/'upstream/spladder'),native_commit=revision(repo),python=sys.version,numpy=numpy.__version__,scipy=scipy.__version__,statsmodels=statsmodels.__version__,h5py=h5py.__version__,filesystem_cache='not flushed; fresh/reused refer to application outputs',measurement='child commands, startup included; staging and container startup excluded; cgroup peak includes worker and staging')
  assert metadata['reference_commit']=='65ceec839b9ff0cf96703c1605ee43667662f410'
@@ -31,7 +31,7 @@ def main():
     matched=compare(roots['reference']/'results',roots['rust']/'results',a.exporter);matched.update(label=label,repeat=repeat+1,cache=cache);parity.append(matched)
     (a.work/'progress.json').write_text(json.dumps(dict(runs=reports,parity=parity),indent=2)+'\n')
  summaries=[]
- metrics=['wall_seconds','cpu_seconds','mean_cores','utilization_8cpu_percent','max_process_rss_kib','cgroup_peak_bytes','input_blocks','output_blocks']
+ metrics=['wall_seconds','cpu_seconds','mean_cores','utilization_4cpu_percent','max_process_rss_kib','cgroup_peak_bytes','input_blocks','output_blocks']
  for label in sorted({r['label'] for r in reports}):
   for cache in ['fresh','reused']:
    values={mode:{metric:statistics.median(r[metric] for r in reports if r['label']==label and r['cache']==cache and r['mode']==mode) for metric in metrics} for mode in ['reference','rust']}

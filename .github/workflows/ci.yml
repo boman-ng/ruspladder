@@ -1,0 +1,71 @@
+name: CI and Linux release
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build the pinned Linux toolchain
+        run: docker build -f Dockerfile.build -t ruspladder-build:0.1.0 .
+      - name: Check, package and compare upstream public data
+        run: |
+          mkdir -p "$RUNNER_TEMP/ruspladder"
+          docker run --rm --cpus 4 --memory 4g --memory-swap 4g \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/src" -v "$RUNNER_TEMP/ruspladder:/work" \
+            ruspladder-build:0.1.0 bash scripts/ci.sh
+      - name: Test relocated runtime without Python or build dependencies
+        run: |
+          mkdir -p "$RUNNER_TEMP/runtime"
+          tar -xzf "$RUNNER_TEMP"/ruspladder/dist/*.tar.gz -C "$RUNNER_TEMP/runtime"
+          docker run --rm --network none \
+            -v "$RUNNER_TEMP/runtime:/opt/ruspladder:ro" debian:bookworm-slim \
+            sh -ec 'test -z "$(command -v python3)"; /opt/ruspladder/*/ruspladder --version'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-amd64
+          path: |
+            ${{ runner.temp }}/ruspladder/dist/*.tar.gz
+            ${{ runner.temp }}/ruspladder/dist/*.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: public-test-results
+          path: |
+            ${{ runner.temp }}/ruspladder/public-tests/report.json
+            ${{ runner.temp }}/ruspladder/public-tests/*/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-amd64
+          path: dist
+      - name: Publish the tested binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+          test "$GITHUB_REF_NAME" = "v$version"
+          (cd dist && sha256sum -c *.sha256)
+          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag \
+            --title "Ruspladder $GITHUB_REF_NAME" --notes-file CHANGELOG.md

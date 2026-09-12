@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "ruspladder",
     version,
-    about = "SplAdder Rust migration (in development)"
+    about = "Rust implementation of SplAdder's non-visual alternative splicing analysis"
 )]
 struct Cli {
     #[command(subcommand)]

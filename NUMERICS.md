@@ -29,9 +29,10 @@ The native dependency bootstrap extracts only the three redistributable shared
 libraries from a SHA-256-pinned NumPy wheel and validates each library's hash.
 The 16.5 MB archive and 27 MB extracted libraries stay under the configured data
 work root. See `licenses/NumPy-wheel-native-notices.txt`
-for OpenBLAS, LAPACK, GCC runtime and quadmath notices. Native library paths are
-set at build time through RUSPLADDER_BLAS_DIR; no portability beyond this tested
-Linux x86_64 baseline is claimed.
+for OpenBLAS, LAPACK, GCC runtime and quadmath notices. Development library paths are set through RUSPLADDER_BLAS_DIR. Release packaging
+sets relative ELF library paths and includes the pinned native libraries beside
+the executable, with their notices. The Linux amd64 archive requires glibc 2.36
+or newer; Python is not a runtime dependency.
 
 Primary references:
 
