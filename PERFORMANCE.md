@@ -173,3 +173,45 @@ research note for the bounded experiment and its limitations.
 Evidence and commands: [run manifest](../runs/lncrna-three-20260912/manifest.json),
 [baseline outcomes](../runs/lncrna-three-20260912/baseline-summary.json), and
 [S027 graph comparison](../runs/lncrna-three-20260912/S027_HK20260811047RNA-5_rna_LncRNA_2556568/graph-comparison-previous.json).
+
+## Timeout root cause: annotation scope and skewed work
+
+A subsequent bounded S026 investigation found 714 of the 31,130 GTF gene IDs
+on more than one chromosome/strand, including 641 on multiple contigs. The
+pinned Python parser keys genes only by gene_id and combines these exon
+coordinates under the first chromosome/strand. Rust preserves that behavior.
+For example, ZNF84 becomes a 133.60 Mb interval on chromosome 12 after exons
+from Un_gl000223 are added. These mixed-locus models account for 85.8% of the
+summed gene spans. Historical Python graphs contain the same abnormal bounds.
+
+Instrumentation on branch `perf/p0-timeout-root-cause` (code commit `7bf2d6c`)
+measured 1,104,073,305 alignment record returns during the serial initial
+intron stage (382.306 seconds). The cassette stage then took 405.006 seconds;
+its last worker continued querying for 346.585 seconds after the other three
+workers' final evidence calls. Costly chromosome 6 genes were concentrated in
+a large Rayon work item. Initial and cassette-tail profiles attributed 59.08%
+and 43.18% of sampled user cycles to BAM decompression. The diagnostic build
+also timed out at 1,200.189 seconds, during graph quantification, without OOM.
+
+As a causal counterfactual, a separate GTF copy split only conflicting gene IDs
+by chromosome and strand. All 1,490,438 data lines, coordinates, transcripts
+and the full BAM were retained. Using the same instrumented binary and
+4-CPU / 8-GiB constraints, this build completed in 351.802 seconds with
+438.1 MiB peak process RSS; separate annotation preparation took 28.288 seconds.
+Its initial intron stage returned 227,109,460 records in 96.244 seconds. The
+instrumented binary was checked against production on chromosome 22:
+23,658 HDF5 datasets and 6 text files matched, including raw float bits.
+
+**The counterfactual changes gene identities and scientific outputs. It is not
+an output-equivalent optimization or a successful rerun of all three original
+samples.** These are single diagnostic measurements on a shared warm-cache
+host, not a production speedup benchmark. Correcting annotation scope needs
+an explicit compatibility decision. Output-preserving work should investigate
+repeated decode work, task granularity and oversized coverage allocations.
+After the interval problem is removed, graph-cache reads/writes are another
+measured serial cost (156.855 seconds in the counterfactual).
+
+All diagnostic jobs are stopped; the production binary is unchanged. The
+[full causal report and raw evidence](/home/wubw/data/ruspladder/runs/lncrna-three-20260912/root-cause/README.md)
+include the GTF audit, source links, per-region traces, counterfactual rules,
+resource records, exclusions and limitations.
