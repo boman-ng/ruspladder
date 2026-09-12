@@ -101,7 +101,8 @@ The controlled native-before/after experiment in DECOMPRESSION.md measures the
 12.3% mean-core increase from independent gene stages. These small workflows do
 not saturate four cores throughout their lifetime. Native HDF5 caches also write
 more blocks in fresh runs than source pickle caches; no I/O-volume reduction is
-claimed. Overall real-data runtime and peak-memory improvements both pass.
+claimed. Runtime and peak-memory improvements pass on the small real-data
+airway workload above; this does not establish full-size sample completion.
 
 | Workflow | Cache | Build wall s source / Rust | Test wall s source / Rust |
 | --- | --- | ---: | ---: |
@@ -126,3 +127,49 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
   --binary /home/wubw/data/ruspladder/target/release/ruspladder \
   --exporter /home/wubw/data/ruspladder/target/release/examples/cache_export_probe
 ```
+
+
+## Full-size lncRNA follow-up, 2026-09-12
+
+The three BAMs from the previously timed-out Python workflow were run separately
+with the same scientific parameters: RefSeq hg19, confidence 3, read length 150,
+`merge_graphs`, `exon_skip,mult_exon_skip`, and text outputs. Each native process
+used four disjoint CPUs and a hard 8 GiB container limit. Shared annotation prep
+took 26.235 seconds; the build durations below exclude this shared step. The user
+set a 20-minute deadline while builds were running, applied from each build's
+original start time. The supervisor sent SIGTERM at that deadline and retained
+all files. The small scheduling/signal delay is included in measured wall time.
+
+| Sample | BAM GB (decimal) | Build wall seconds | Mean cores | Peak process RSS GiB | Outcome at deadline |
+| --- | ---: | ---: | ---: | ---: | --- |
+| S025 | 11.249 | 1200.893 | 1.295 | 1.876 | Timed out during graph generation |
+| S026 | 9.193 | 1201.373 | 1.252 | 2.198 | Timed out during graph generation |
+| S027 | 10.674 | 1201.884 | 2.009 | 2.105 | Graph saved; timed out during graph quantification |
+
+All three containers reached 8 GiB charged peak, including file cache. None had
+an OOM kill. Charged peak is not process RSS. None produced complete event count
+or event text outputs. S027 saved its sample and merged graph caches; its
+unfinished temporary count file is not a usable completed count result.
+
+The S027 merged graph contains 31,130 genes, all matching the earlier completed
+Python graph under the existing graph serializer, including graph structure,
+ordering, annotation fields, and segment graph. The earlier and current BAMs
+have identical per-contig index counts but different bytes; this is a comparison
+of observed outputs, not a claim of input byte identity. No complete event or
+quantification parity result is available for these timed-out runs.
+
+These are execution observations, not an isolated Python/Rust speedup benchmark:
+the samples shared storage, and separate CPU sets also ran the bounded P0
+investigation. The Python retries timed out around 59 minutes; older completed
+Python runs took 9–10.5 hours under their earlier resource configuration. Neither
+is used to calculate a speedup ratio here.
+
+The serial initial intron-query loop was evaluated on branch
+`perf/p0-intron-extraction`. The candidate passed the existing source and thread
+comparisons and reduced median chr22-subset runtime by 18.6%, but its full S026
+run also timed out at 20 minutes after saving only the sample graph. It was not
+merged; the production binary remains the tested baseline. See the branch
+research note for the bounded experiment and its limitations.
+Evidence and commands: [run manifest](../runs/lncrna-three-20260912/manifest.json),
+[baseline outcomes](../runs/lncrna-three-20260912/baseline-summary.json), and
+[S027 graph comparison](../runs/lncrna-three-20260912/S027_HK20260811047RNA-5_rna_LncRNA_2556568/graph-comparison-previous.json).
