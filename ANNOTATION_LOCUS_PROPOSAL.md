@@ -1,6 +1,6 @@
 # Ruspladder 多位置注释处理与性能优化建议
 
-日期：2026-09-12。状态：原研究建议；实现和验收记录另见本分支运行报告。已有实测见 [超时根因报告](/home/wubw/data/ruspladder/p0-timeout-root-cause/TIMEOUT_ROOT_CAUSE.md)。方案原件在 `perf/p0-timeout-root-cause`，本实现分支为 `perf/p0-locus-lifecycle`。
+日期：2026-09-12。本文保留原研究建议；已实现的范围与验收结果见 [性能记录](PERFORMANCE.md#locus-identity-and-lifecycle-optimization-2026-09-12) 和 [完整运行报告](../runs/locus-lifecycle-20260912/README.md)。根因证据见 [超时根因报告](/home/wubw/data/ruspladder/p0-timeout-root-cause/TIMEOUT_ROOT_CAUSE.md)。方案原件在 `perf/p0-timeout-root-cause`，实现分支为 `perf/p0-locus-lifecycle`。
 
 ## 1. 问题归属与依据
 
@@ -73,4 +73,4 @@ S026 的同一完整 BAM、同一诊断二进制，在 4 核/8 GiB 下：原注�
 3. 使用 S025/S026/S027 原 BAM，每样本 4 核、8 GiB、全流程 1 小时硬截止、30 分钟软边界，无可视化。记录注释准备、图构建、定量、事件输出、缓存各阶段，以及 CPU 秒数、平均用核、进程 RSS 和 cgroup 内存。首次准备与缓存复用分开报告，避免将输入准备时间隐藏在构建之外。
 4. 比较完整最终输出，临时文件不算成功；每一项优化均保留基线差异报告。需要扩展性测试时再使用 8/16/32/64 核，总并发核数不超过 64；4 核基准仍是主要验收依据。
 
-以上是待执行方案。本轮只补充规范与实现依据，不改变生产代码、原 GTF、参考库或现有样本结果。
+以上为研究时提出的方案。后续实现采用独立的两遍流式 GTF 规范化，再复用原导入器；映射表保留 ID、父基因、seqname 和 strand，坐标继续保存在未删行的规范化 GTF 中。已落地的位置归属、覆盖度内存、任务粒度及图缓存复用见性能记录；有界解压缓存和多区域读取仍是未实施的研究候选，不应视为已有功能。
