@@ -1,0 +1,32 @@
+[package]
+name = "ruspladder"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+description = "Rust migration of SplAdder's non-visual alternative splicing analysis"
+license = "BSD-3-Clause"
+authors = ["boman-ng <boman.ngs@gmail.com>"]
+repository = "https://github.com/boman-ng/ruspladder"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1"
+libc = "0.2"
+clap = { version = "4", features = ["derive"] }
+hdf5 = { package = "hdf5-metno", version = "0.14", features = ["static", "zlib"] }
+hdf5-sys = { package = "hdf5-metno-sys", version = "0.12" }
+ndarray = "0.17"
+flate2 = { version = "1", default-features = false, features = ["zlib"] }
+rayon = "1.11"
+regex = "1"
+tempfile = "3"
+rust-htslib = { version = "1.0.1", default-features = false, features = ["bzip2", "lzma", "libdeflate"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[build-dependencies]
+cc = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

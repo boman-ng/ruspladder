@@ -1,0 +1,55 @@
+{
+  "wheel": {
+    "url": "https://files.pythonhosted.org/packages/8c/3d/1e1db36cfd41f895d266b103df00ca5b3cbe965184df824dec5c08c6b803/numpy-2.2.6-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+    "sha256": "fd83c01228a688733f1ded5201c678f0c53ecc1006ffbc404db9f7a899ac6249"
+  },
+  "libraries": {
+    "libscipy_openblas64_-56d6093b.so": "0bd815d04b6b54990e3cccc7528fbb696456d09569f533d0390c13f0cdc4dd4a",
+    "libgfortran-040039e1-0352e75f.so.5.0.0": "c6090048eccc763522c12ef016f81da6b627cb3a044f55cf0479a839c41c0980",
+    "libquadmath-96973f99-934c22de.so.0.0.0": "6ed5137f412781ad7863439fb543613f620b43c32b63292a0029246162f5bbc6"
+  },
+  "runtime_libraries": [
+    {
+      "component": "libquadmath",
+      "binary_rpm": "libquadmath-4.8.5-44.el7.x86_64.rpm",
+      "binary_rpm_sha256": "72c210666a44092430a965f8319492faf4950959d56650067d0629ee71caa2ab",
+      "rpm_library_sha256": "96973f995bad4e4b80eaa188b7bac60bd0df44b22ee67bd046b3aa4ecb9e34fd",
+      "wheel_library": "libquadmath-96973f99-934c22de.so.0.0.0",
+      "wheel_library_sha256": "6ed5137f412781ad7863439fb543613f620b43c32b63292a0029246162f5bbc6",
+      "matching_sections": {
+        ".text": "4dcdf3ba6ed0886a109161a4cdb6701252fb46496c77f1ac425951dfa6860458",
+        ".rodata": "e136180b0009974224ea550f3caadad87dfa57095c50427d0aa0d54e8be69d35",
+        ".data": "d8f7fd84bc1222adb2f1cb37886edd220373bb791b2e23b601a283fef67225b2",
+        ".eh_frame": "4817c8858fc0c63c86fed4884cc814bcc1edd42b9e926feafbfe5e25b5f818e8"
+      },
+      "build_id": "549b4c82347785459571c79239872ad31509dcf4",
+      "binary_rpm_url": "https://vault.centos.org/7.9.2009/os/x86_64/Packages/libquadmath-4.8.5-44.el7.x86_64.rpm",
+      "source": {
+        "filename": "gcc-4.8.5-44.el7.src.rpm",
+        "url": "https://vault.centos.org/7.9.2009/os/Source/SPackages/gcc-4.8.5-44.el7.src.rpm",
+        "sha256": "642c4085f6af9565e39583e54a9d7a5d9e6b93dd8c8e9474aec8a892d6c7aa36"
+      }
+    },
+    {
+      "component": "libgfortran",
+      "binary_rpm": "libgfortran5-8.3.1-2.1.1.el7.x86_64.rpm",
+      "binary_rpm_sha256": "f0bebfc9c53dbbd867f3e6a509afb3352a7a9bd2bee0f34f798f7d17b7ff9f66",
+      "rpm_library_sha256": "040039e193a33d4d4304a514f9e51441c9fe42549c8432a3588850c4517ecfde",
+      "wheel_library": "libgfortran-040039e1-0352e75f.so.5.0.0",
+      "wheel_library_sha256": "c6090048eccc763522c12ef016f81da6b627cb3a044f55cf0479a839c41c0980",
+      "matching_sections": {
+        ".text": "774dd2e9d04a30d4b1e68bac3fe0b023bf85a30388d90942c03c8cc2c57da790",
+        ".rodata": "ac4fb77497638a59b0fcdb3211ec95949697e4296732e246d45b401fbd459e2e",
+        ".data": "8b9eec92769d5c73cb9ccba2dfcde66ba427a988fa36a8533579808ba265e74f",
+        ".eh_frame": "8def5d334da3bf4350494645f1111042668d22a4cbc863a9c11e0c117fc374cf"
+      },
+      "build_id": "5bbe74eb6855e0a2c043c0bec2f484bf3e9f14c0",
+      "binary_rpm_url": "https://vault.centos.org/7.9.2009/os/x86_64/Packages/libgfortran5-8.3.1-2.1.1.el7.x86_64.rpm",
+      "source": {
+        "filename": "gcc-libraries-8.3.1-2.1.1.el7.src.rpm",
+        "url": "https://vault.centos.org/7.9.2009/os/Source/SPackages/gcc-libraries-8.3.1-2.1.1.el7.src.rpm",
+        "sha256": "cf2a1d2c2e5a56eb2e495c2638e64769b73db07555e1f7ce34cbd9feff6891f5"
+      }
+    }
+  ]
+}

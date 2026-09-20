@@ -1,0 +1,66 @@
+{
+  "source": "https://bioconductor.org/packages/3.23/data/experiment/src/contrib/airway_1.32.0.tar.gz",
+  "archive_sha256": "829f654fc8075ac9d810574e8a8d4672e69e847c45fa2ce598d1ffbc30c7fe19",
+  "files": [
+    {
+      "path": "GSE52778_series_matrix.txt",
+      "bytes": 44049,
+      "sha256": "2ff647da0537660c91446ba07ee51cbc284f52058d989c0744f150d8f5147e24"
+    },
+    {
+      "path": "Homo_sapiens.GRCh37.75_subset.gtf",
+      "bytes": 269126,
+      "sha256": "de71a73bc666db2245dd0b41562e1685f92ba734ed0460923a3f9e427113716a"
+    },
+    {
+      "path": "SRR1039508_subset.bam",
+      "bytes": 645733,
+      "sha256": "3806f25dc3f88197433083f648d855bd280b230ec00629ab254d6edf09601036"
+    },
+    {
+      "path": "SRR1039509_subset.bam",
+      "bytes": 668199,
+      "sha256": "eb3e68e4a42d19b39041678981c4b2d84080f252dbd7d8cd2b9fb969f2674c56"
+    },
+    {
+      "path": "SRR1039512_subset.bam",
+      "bytes": 803954,
+      "sha256": "456f21bafa64f5ee1a5aa48264b75f288568b857e2c28974a307cb9d915a7d2e"
+    },
+    {
+      "path": "SRR1039513_subset.bam",
+      "bytes": 774615,
+      "sha256": "a9a5c234dd24ec24cb44b1f39b79a95f9736a88257d87dad96383b3f1fa935e1"
+    },
+    {
+      "path": "SRR1039516_subset.bam",
+      "bytes": 876143,
+      "sha256": "726abf4ef01290dc85c2375432844f5b8da2933fe6c9c5657f67c36c070feca1"
+    },
+    {
+      "path": "SRR1039517_subset.bam",
+      "bytes": 1182706,
+      "sha256": "b745c3e209ba1c73a72e374ff7577d22711a13fd58f5cf2f407df7909a7813df"
+    },
+    {
+      "path": "SRR1039520_subset.bam",
+      "bytes": 607135,
+      "sha256": "8eab9f0736612f9b23c328cfb967671968d332352be4c5d68373de80aafd0798"
+    },
+    {
+      "path": "SRR1039521_subset.bam",
+      "bytes": 1037718,
+      "sha256": "b940179b4f74faa67525c4bebb2460508b782f64e5e82e76b03436a1dff391fe"
+    },
+    {
+      "path": "SraRunInfo_SRP033351.csv",
+      "bytes": 7659,
+      "sha256": "30dc64793b02f201bb47e669366eef36921a8e5fb2f7b8c61f3503c20a9e2e3b"
+    },
+    {
+      "path": "sample_table.csv",
+      "bytes": 941,
+      "sha256": "741c0110963fc8f4f07304ecc166f0b32f1fa493004d41500b14364c81fc6f71"
+    }
+  ]
+}
